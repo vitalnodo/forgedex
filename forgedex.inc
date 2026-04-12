@@ -409,3 +409,163 @@ struc try_item? _start_addr?*, _insn_count?*, _handler_off?*
     .insn_count?:  ushort _insn_count
     .handler_off?: ushort _handler_off
 end struc
+
+; ── Register aliases ──────────────────────────────────────
+ 
+v0 = 0
+v1 = 1
+v2 = 2
+v3 = 3
+v4 = 4
+v5 = 5
+v6 = 6
+v7 = 7
+v8 = 8
+v9 = 9
+v10 = 10
+v11 = 11
+v12 = 12
+v13 = 13
+v14 = 14
+v15 = 15
+ 
+; ── Dalvik instruction formats ────────────────────────────
+ 
+macro __fmt_10x? op?*
+    dw op
+end macro
+ 
+macro __fmt_10t? op?*, offset?*
+    dw ((offset and $FF) shl 8) or op
+end macro
+ 
+macro __fmt_11x? op?*, a?*
+    dw (a shl 8) or op
+end macro
+ 
+macro __fmt_11n? op?*, a?*, lit?*
+    dw ((lit and $0F) shl 12) or (a shl 8) or op
+end macro
+ 
+macro __fmt_21c? op?*, a?*, idx?*
+    dw (a shl 8) or op, idx
+end macro
+ 
+macro __fmt_21t? op?*, a?*, offset?*
+    dw (a shl 8) or op, offset
+end macro
+ 
+macro __fmt_22c? op?*, a?*, b?*, idx?*
+    dw (b shl 12) or (a shl 8) or op, idx
+end macro
+ 
+macro __fmt_22t? op?*, a?*, b?*, offset?*
+    dw (b shl 12) or (a shl 8) or op, offset
+end macro
+ 
+macro __fmt_22b? op?*, a?*, b?*, lit?*
+    dw (a shl 8) or op, ((lit and $FF) shl 8) or b
+end macro
+ 
+macro __fmt_35c? op?*, idx?*, regs?*&
+    local count?, c?, d?, e?, f?, g?
+    c? = 0
+    d? = 0
+    e? = 0
+    f? = 0
+    g? = 0
+    count? = 0
+    iterate reg?, regs
+        count? = count? + 1
+        match =1, %
+            c? = reg
+        end match
+        match =2, %
+            d? = reg
+        end match
+        match =3, %
+            e? = reg
+        end match
+        match =4, %
+            f? = reg
+        end match
+        match =5, %
+            g? = reg
+        end match
+    end iterate
+    dw (count? shl 12) or (g? shl 8) or op, idx, (f? shl 12) or (e? shl 8) or (d? shl 4) or c?
+end macro
+ 
+; ── Dalvik instructions ───────────────────────────────────
+ 
+macro return_void?
+    __fmt_10x $0E
+end macro
+ 
+macro move_result_object? a?*
+    __fmt_11x $0C, a
+end macro
+ 
+macro const_4? a?*, lit?*
+    __fmt_11n $12, a, lit
+end macro
+ 
+macro goto? offset?*
+    __fmt_10t $28, offset
+end macro
+ 
+macro const_string? a?*, idx?*
+    __fmt_21c $1A, a, idx
+end macro
+ 
+macro new_instance? a?*, idx?*
+    __fmt_21c $22, a, idx
+end macro
+ 
+macro sget_object? a?*, idx?*
+    __fmt_21c $62, a, idx
+end macro
+ 
+macro if_eqz? a?*, offset?*
+    __fmt_21t $38, a, offset
+end macro
+ 
+macro iget? a?*, b?*, idx?*
+    __fmt_22c $52, a, b, idx
+end macro
+ 
+macro iget_object? a?*, b?*, idx?*
+    __fmt_22c $54, a, b, idx
+end macro
+ 
+macro iput? a?*, b?*, idx?*
+    __fmt_22c $59, a, b, idx
+end macro
+ 
+macro iput_object? a?*, b?*, idx?*
+    __fmt_22c $5B, a, b, idx
+end macro
+ 
+macro if_eq? a?*, b?*, offset?*
+    __fmt_22t $32, a, b, offset
+end macro
+ 
+macro add_int_lit8? a?*, b?*, lit?*
+    __fmt_22b $D8, a, b, lit
+end macro
+ 
+macro invoke_virtual? method?*, regs?*&
+    __fmt_35c $6E, method, regs
+end macro
+ 
+macro invoke_super? method?*, regs?*&
+    __fmt_35c $6F, method, regs
+end macro
+ 
+macro invoke_direct? method?*, regs?*&
+    __fmt_35c $70, method, regs
+end macro
+ 
+macro invoke_static? method?*, regs?*&
+    __fmt_35c $71, method, regs
+end macro

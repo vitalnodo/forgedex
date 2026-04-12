@@ -263,12 +263,10 @@ end postpone
 
 ; ── <init>()V ─────────────────────────────────────────────
 ; v0 = this (p0)
-; invoke-direct {v0}, Activity.<init>()V
-; return-void
 virtual at $00
 _init_insns::
-    dw $1070, _act_init_m, $0000    ; invoke-direct {v0}, Activity.<init>
-    dw $000E                         ; return-void
+    invoke_direct  _act_init_m, v0                      ; Activity.<init>
+    return_void
 end virtual
 
 ; ── onCreate(Bundle)V ─────────────────────────────────────
@@ -276,37 +274,15 @@ end virtual
 ; v0=Button, v1="0"
 virtual at $00
 _oncreate_insns::
-    ; invoke-super {v2,v3}, Activity.onCreate(Bundle)V
-    dw $206F, _act_oncr_m, $0032
-
-    ; new-instance v0, Button
-    dw $0022, _button_type
-
-    ; invoke-direct {v0,v2}, Button.<init>(Context)V
-    ; 35c: A=2, C=v0, D=v2 → word3=(2<<4)|0=$0020
-    dw $2070, _btn_init_m, $0020
-
-    ; const-string v1, "0"
-    dw $011A, _s0_str
-
-    ; invoke-virtual {v0,v1}, Button.setText(CharSequence)V
-    ; 35c: A=2, C=v0, D=v1 → word3=(1<<4)|0=$0010
-    dw $206E, _btn_settt_m, $0010
-
-    ; invoke-virtual {v0,v2}, Button.setOnClickListener(this)
-    ; 35c: A=2, C=v0, D=v2 → word3=(2<<4)|0=$0020
-    dw $206E, _btn_setocl_m, $0020
-
-    ; iput-object v0, v2, HelloWorld.btn
-    ; 22c: [B|A|op][field_idx], A=0(v0=val), B=2(v2=obj) → word1=(2<<12)|(0<<8)|0x5B=$205B
-    dw $205B, _btn_field
-
-    ; invoke-virtual {v2,v0}, Activity.setContentView(View)V
-    ; 35c: A=2, C=v2, D=v0 → word3=(0<<4)|2=$0002
-    dw $206E, _act_setcv_m, $0002
-
-    ; return-void
-    dw $000E
+    invoke_super   _act_oncr_m, v2, v3                  ; Activity.onCreate
+    new_instance   v0, _button_type                     ; new Button
+    invoke_direct  _btn_init_m, v0, v2                  ; Button.<init>
+    const_string   v1, _s0_str                          ; "0"
+    invoke_virtual _btn_settt_m, v0, v1                 ; setText
+    invoke_virtual _btn_setocl_m, v0, v2                ; setOnClickListener
+    iput_object    v0, v2, _btn_field                   ; this.btn = btn
+    invoke_virtual _act_setcv_m, v2, v0                 ; setContentView
+    return_void
 end virtual
 
 ; ── onClick(View)V ────────────────────────────────────────
@@ -314,33 +290,12 @@ end virtual
 ; v0=count(int)/result(String), v1=btn(Button)
 virtual at $00
 _onclick_insns::
-    ; iget v0, v2, HelloWorld.count
-    ; 22c: A=0(dst), B=2(obj) → word1=(2<<12)|(0<<8)|0x52=$2052
-    dw $2052, _count_field
-
-    ; add-int/lit8 v0, v0, 1
-    ; 22b: [AA|op][CC|BB], AA=0(dst), BB=0(src), CC=1(lit) → $00D8, $0100
-    dw $00D8, $0100
-
-    ; iput v0, v2, HelloWorld.count
-    ; 22c: A=0(val), B=2(obj) → word1=(2<<12)|(0<<8)|0x59=$2059
-    dw $2059, _count_field
-
-    ; iget-object v1, v2, HelloWorld.btn
-    ; 22c: A=1(dst), B=2(obj) → word1=(2<<12)|(1<<8)|0x54=$2154
-    dw $2154, _btn_field
-
-    ; invoke-static {v0}, Integer.toString(int)
-    ; 35c: A=1, C=v0 → word1=$1071, word3=$0000
-    dw $1071, _int_tos_m, $0000
-
-    ; move-result-object v0
-    dw $000C
-
-    ; invoke-virtual {v1,v0}, Button.setText(CharSequence)V
-    ; 35c: A=2, C=v1, D=v0 → word3=(0<<4)|1=$0001
-    dw $206E, _btn_settt_m, $0001
-
-    ; return-void
-    dw $000E
+    iget           v0, v2, _count_field                 ; count
+    add_int_lit8   v0, v0, 1                            ; count++
+    iput           v0, v2, _count_field                 ; this.count = count
+    iget_object    v1, v2, _btn_field                   ; btn
+    invoke_static  _int_tos_m, v0                       ; Integer.toString
+    move_result_object v0                               ; result
+    invoke_virtual _btn_settt_m, v1, v0                 ; setText
+    return_void
 end virtual

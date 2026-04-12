@@ -181,12 +181,10 @@ end postpone
 
 ; ── <init>()V ─────────────────────────────────────────────
 ; v0 = this (p0)
-; invoke-direct {v0}, Activity.<init>()V
-; return-void
 virtual at $00
 _hello_init_insns::
-    dw $1070, _activity_init_method, $0000  ; invoke-direct {v0}, Activity.<init>
-    dw $000E                                ; return-void
+    invoke_direct  _activity_init_method, v0            ; Activity.<init>
+    return_void
 end virtual
 
 ; ── onCreate(Bundle)V ─────────────────────────────────────
@@ -194,24 +192,11 @@ end virtual
 ; v0=TextView, v1="Hello, World!"
 virtual at $00
 _hello_oncreate_insns::
-    ; invoke-super {v2,v3}, Activity.onCreate(Bundle)V
-    dw $206F, _activity_oncreate_method, $0032
-
-    ; new-instance v0, TextView
-    dw $0022, _textview_type
-
-    ; invoke-direct {v0,v2}, TextView.<init>(Context)V
-    dw $2070, _textview_init_method, $0020
-
-    ; const-string v1, "Hello, World!"
-    dw $011A, _hello_world_string
-
-    ; invoke-virtual {v0,v1}, TextView.setText(CharSequence)V
-    dw $206E, _textview_settext_method, $0010
-
-    ; invoke-virtual {v2,v0}, Activity.setContentView(View)V
-    dw $206E, _activity_setcv_method, $0002
-
-    ; return-void
-    dw $000E
+    invoke_super   _activity_oncreate_method, v2, v3    ; Activity.onCreate
+    new_instance   v0, _textview_type                   ; new TextView
+    invoke_direct  _textview_init_method, v0, v2        ; TextView.<init>
+    const_string   v1, _hello_world_string              ; "Hello, World!"
+    invoke_virtual _textview_settext_method, v0, v1     ; setText
+    invoke_virtual _activity_setcv_method, v2, v0       ; setContentView
+    return_void
 end virtual

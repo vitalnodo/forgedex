@@ -227,10 +227,8 @@ end postpone
 ; v0 = this (p0)
 virtual at $00
 _init_insns::
-    ; invoke-direct {v0}, Activity.<init>()V
-    dw $1070, _act_init_m, $0000
-    ; return-void
-    dw $000E
+    invoke_direct  _act_init_m, v0                      ; Activity.<init>
+    return_void
 end virtual
 
 ; ── onCreate(Bundle)V ─────────────────────────────────────
@@ -238,37 +236,14 @@ end virtual
 ; v0=temp/result, v1=TextView
 virtual at $00
 _oncreate_insns::
-    ; invoke-super {v2,v3}, Activity.onCreate(Bundle)V
-    dw $206F, _act_oncr_m, $0032
-
-    ; const-string v0, "hello"
-    dw $001A, _hello_lib_str
-
-    ; invoke-static {v0}, System.loadLibrary(String)V
-    dw $1071, _sys_loadlib_m, $0000
-
-    ; new-instance v1, TextView
-    dw $0122, _textview_type
-
-    ; invoke-direct {v1,v2}, TextView.<init>(Context)V
-    ; 35c: A=2, C=v1, D=v2 → word3=(2<<4)|1=$0021
-    dw $2070, _tv_init_m, $0021
-
-    ; invoke-virtual {v2}, this.answer()String
-    ; 35c: A=1, C=v2 → word1=$106E, word3=$0002
-    dw $106E, _hw_answer_m, $0002
-
-    ; move-result-object v0
-    dw $000C
-
-    ; invoke-virtual {v1,v0}, TextView.setText(CharSequence)V
-    ; 35c: A=2, C=v1, D=v0 → word3=(0<<4)|1=$0001
-    dw $206E, _tv_settt_m, $0001
-
-    ; invoke-virtual {v2,v1}, Activity.setContentView(View)V
-    ; 35c: A=2, C=v2, D=v1 → word3=(1<<4)|2=$0012
-    dw $206E, _act_setcv_m, $0012
-
-    ; return-void
-    dw $000E
+    invoke_super   _act_oncr_m, v2, v3                  ; Activity.onCreate
+    const_string   v0, _hello_lib_str                   ; "hello"
+    invoke_static  _sys_loadlib_m, v0                   ; System.loadLibrary
+    new_instance   v1, _textview_type                   ; new TextView
+    invoke_direct  _tv_init_m, v1, v2                   ; TextView.<init>
+    invoke_virtual _hw_answer_m, v2                     ; this.answer()
+    move_result_object v0                               ; result
+    invoke_virtual _tv_settt_m, v1, v0                  ; setText
+    invoke_virtual _act_setcv_m, v2, v1                 ; setContentView
+    return_void
 end virtual

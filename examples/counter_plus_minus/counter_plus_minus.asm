@@ -266,12 +266,10 @@ end postpone
 
 ; ── <init>()V ─────────────────────────────────────────────
 ; v0=this(p0)
-; invoke-direct {v0}, Activity.<init>
-; return-void
 virtual at $00
 _init_insns::
-    dw $1070, _act_init_m, $0000    ; invoke-direct {v0}, Activity.<init>
-    dw $000E                         ; return-void
+    invoke_direct  _act_init_m, v0                      ; Activity.<init>
+    return_void
 end virtual
 
 ; ── onClick(View)V ────────────────────────────────────────
@@ -281,48 +279,20 @@ end virtual
 ; if view == btn_plus → increment, else decrement (skip if already 0)
 virtual at $00
 _onclick_insns::
-    ; iget-object v1, v4, btn_plus
-    dw $4154, _f_btn_plus
-
-    ; if-eq v5, v1, :plus (+9 words from next instruction)
-    dw $1532, $0009
-
-    ; minus branch: iget v0, v4, count
-    dw $4052, _f_count
-
-    ; if-eqz v0, :upd (+9 words) — skip decrement if count == 0
-    dw $0038, $0009
-
-    ; add-int/lit8 v0, v0, -1
-    dw $00D8, $FF00
-
-    ; goto :upd (+5)
-    dw $0528
-
-    ; :plus iget v0, v4, count
-    dw $4052, _f_count
-
-    ; add-int/lit8 v0, v0, +1
-    dw $00D8, $0100
-
-    ; :upd iput v0, v4, count
-    dw $4059, _f_count
-
-    ; iget-object v2, v4, tv
-    dw $4254, _f_tv
-
-    ; invoke-static {v0}, Integer.toString(int)
-    dw $1071, _int_tos_m, $0000
-
-    ; move-result-object v0
-    dw $000C
-
-    ; invoke-virtual {v2,v0}, TextView.setText(CharSequence)V
-    ; 35c: A=2, C=v2, D=v0 → word3=(0<<4)|2=$0002
-    dw $206E, _tv_settt_m, $0002
-
-    ; return-void
-    dw $000E
+    iget_object    v1, v4, _f_btn_plus                  ; btn_plus
+    if_eq          v5, v1, $0009                        ; if view == btn_plus → :plus
+    iget           v0, v4, _f_count                     ; minus: count
+    if_eqz         v0, $0009                            ; if count == 0 → :upd
+    add_int_lit8   v0, v0, -1                           ; count--
+    goto           $05                                  ; → :upd
+    iget           v0, v4, _f_count                     ; :plus count
+    add_int_lit8   v0, v0, 1                            ; count++
+    iput           v0, v4, _f_count                     ; :upd this.count = count
+    iget_object    v2, v4, _f_tv                        ; tv
+    invoke_static  _int_tos_m, v0                       ; Integer.toString
+    move_result_object v0                               ; result
+    invoke_virtual _tv_settt_m, v2, v0                  ; setText
+    return_void
 end virtual
 
 ; ── onCreate(Bundle)V ─────────────────────────────────────
@@ -330,102 +300,31 @@ end virtual
 ; v0=LinearLayout, v1=TextView, v2=Button(+), v3=Button(-), v4=temp
 virtual at $00
 _oncreate_insns::
-    ; invoke-super {v5,v6}, Activity.onCreate
-    ; 35c: A=2, C=v5, D=v6 → word3=(6<<4)|5=$0065
-    dw $206F, _act_oncr_m, $0065
-
-    ; new-instance v0, LinearLayout
-    dw $0022, _ll_type
-
-    ; invoke-direct {v0,v5}, LinearLayout.<init>(Context)V
-    ; 35c: A=2, C=v0, D=v5 → word3=(5<<4)|0=$0050
-    dw $2070, _ll_init_m, $0050
-
-    ; const/4 v4, 1  (VERTICAL=1)
-    dw $1412
-
-    ; invoke-virtual {v0,v4}, LinearLayout.setOrientation(I)V
-    ; 35c: A=2, C=v0, D=v4 → word3=(4<<4)|0=$0040
-    dw $206E, _ll_setor_m, $0040
-
-    ; new-instance v1, TextView
-    dw $0122, _textview_type
-
-    ; invoke-direct {v1,v5}, TextView.<init>(Context)V
-    ; 35c: A=2, C=v1, D=v5 → word3=(5<<4)|1=$0051
-    dw $2070, _tv_init_m, $0051
-
-    ; const-string v4, "0"
-    dw $041A, _s0_str
-
-    ; invoke-virtual {v1,v4}, TextView.setText(CharSequence)V
-    ; 35c: A=2, C=v1, D=v4 → word3=(4<<4)|1=$0041
-    dw $206E, _tv_settt_m, $0041
-
-    ; iput-object v1, v5, HelloWorld.tv
-    ; 22c: A=1(v1=val), B=5(v5=obj) → word1=(5<<12)|(1<<8)|0x5B=$515B
-    dw $515B, _f_tv
-
-    ; new-instance v2, Button
-    dw $0222, _button_type
-
-    ; invoke-direct {v2,v5}, Button.<init>(Context)V
-    ; 35c: A=2, C=v2, D=v5 → word3=(5<<4)|2=$0052
-    dw $2070, _btn_init_m, $0052
-
-    ; const-string v4, "+"
-    dw $041A, _plus_str
-
-    ; invoke-virtual {v2,v4}, Button.setText(CharSequence)V
-    ; 35c: A=2, C=v2, D=v4 → word3=(4<<4)|2=$0042
-    dw $206E, _btn_settt_m, $0042
-
-    ; invoke-virtual {v2,v5}, Button.setOnClickListener(this)
-    ; 35c: A=2, C=v2, D=v5 → word3=(5<<4)|2=$0052
-    dw $206E, _btn_setocl_m, $0052
-
-    ; iput-object v2, v5, HelloWorld.btn_plus
-    ; 22c: A=2(v2=val), B=5(v5=obj) → word1=(5<<12)|(2<<8)|0x5B=$525B
-    dw $525B, _f_btn_plus
-
-    ; new-instance v3, Button
-    dw $0322, _button_type
-
-    ; invoke-direct {v3,v5}, Button.<init>(Context)V
-    ; 35c: A=2, C=v3, D=v5 → word3=(5<<4)|3=$0053
-    dw $2070, _btn_init_m, $0053
-
-    ; const-string v4, "-"
-    dw $041A, _minus_str
-
-    ; invoke-virtual {v3,v4}, Button.setText(CharSequence)V
-    ; 35c: A=2, C=v3, D=v4 → word3=(4<<4)|3=$0043
-    dw $206E, _btn_settt_m, $0043
-
-    ; invoke-virtual {v3,v5}, Button.setOnClickListener(this)
-    ; 35c: A=2, C=v3, D=v5 → word3=(5<<4)|3=$0053
-    dw $206E, _btn_setocl_m, $0053
-
-    ; iput-object v3, v5, HelloWorld.btn_minus
-    ; 22c: A=3(v3=val), B=5(v5=obj) → word1=(5<<12)|(3<<8)|0x5B=$535B
-    dw $535B, _f_btn_minus
-
-    ; LinearLayout.addView(tv)
-    ; 35c: A=2, C=v0, D=v1 → word3=(1<<4)|0=$0010
-    dw $206E, _ll_addview_m, $0010
-
-    ; LinearLayout.addView(btn_minus)
-    ; 35c: A=2, C=v0, D=v3 → word3=(3<<4)|0=$0030
-    dw $206E, _ll_addview_m, $0030
-
-    ; LinearLayout.addView(btn_plus)
-    ; 35c: A=2, C=v0, D=v2 → word3=(2<<4)|0=$0020
-    dw $206E, _ll_addview_m, $0020
-
-    ; invoke-virtual {v5,v0}, Activity.setContentView(View)V
-    ; 35c: A=2, C=v5, D=v0 → word3=(0<<4)|5=$0005
-    dw $206E, _act_setcv_m, $0005
-
-    ; return-void
-    dw $000E
+    invoke_super   _act_oncr_m, v5, v6                  ; Activity.onCreate
+    new_instance   v0, _ll_type                         ; new LinearLayout
+    invoke_direct  _ll_init_m, v0, v5                   ; LinearLayout.<init>
+    const_4        v4, 1                                ; VERTICAL
+    invoke_virtual _ll_setor_m, v0, v4                  ; setOrientation
+    new_instance   v1, _textview_type                   ; new TextView
+    invoke_direct  _tv_init_m, v1, v5                   ; TextView.<init>
+    const_string   v4, _s0_str                          ; "0"
+    invoke_virtual _tv_settt_m, v1, v4                  ; setText
+    iput_object    v1, v5, _f_tv                        ; this.tv = tv
+    new_instance   v2, _button_type                     ; new Button
+    invoke_direct  _btn_init_m, v2, v5                  ; Button.<init>
+    const_string   v4, _plus_str                        ; "+"
+    invoke_virtual _btn_settt_m, v2, v4                 ; setText
+    invoke_virtual _btn_setocl_m, v2, v5                ; setOnClickListener
+    iput_object    v2, v5, _f_btn_plus                  ; this.btn_plus = btn
+    new_instance   v3, _button_type                     ; new Button
+    invoke_direct  _btn_init_m, v3, v5                  ; Button.<init>
+    const_string   v4, _minus_str                       ; "-"
+    invoke_virtual _btn_settt_m, v3, v4                 ; setText
+    invoke_virtual _btn_setocl_m, v3, v5                ; setOnClickListener
+    iput_object    v3, v5, _f_btn_minus                 ; this.btn_minus = btn
+    invoke_virtual _ll_addview_m, v0, v1                ; addView(tv)
+    invoke_virtual _ll_addview_m, v0, v3                ; addView(btn_minus)
+    invoke_virtual _ll_addview_m, v0, v2                ; addView(btn_plus)
+    invoke_virtual _act_setcv_m, v5, v0                 ; setContentView
+    return_void
 end virtual
