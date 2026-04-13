@@ -3,32 +3,31 @@ org $00
 
 include '../../forgedex.inc'
 
+macro _strings
+    defstr _init,            "<init>"
+    defstr _hello_world,     "Hello, World!"
+    defstr _activity,        "Landroid/app/Activity;"
+    defstr _context,         "Landroid/content/Context;"
+    defstr _bundle,          "Landroid/os/Bundle;"
+    defstr _view,            "Landroid/view/View;"
+    defstr _textview,        "Landroid/widget/TextView;"
+    defstr _class_hello,     "Lapp/hello/HelloWorld;"
+    defstr _charsequence,    "Ljava/lang/CharSequence;"
+    defstr _object,          "Ljava/lang/Object;"
+    defstr _void,            "V"
+    defstr _shorty_vl,       "VL"
+    defstr _oncreate,        "onCreate"
+    defstr _setcontentview,  "setContentView"
+    defstr _settext,         "setText"
+end macro
+
 postpone
 __global::
 
     dex_header
 
-    ; ── string_ids ────────────────────────────────────────
-    ; Sorted by MUTF-8 unsigned byte order:
-    ; '<'(3C) < 'H'(48) < 'L'(4C)
-    ; "La..." < "Lj..." because 'a'(61) < 'j'(6A)
-    ; Among "La...": "Landroid/..." < "Lapp/..." because 'n'(6E) < 'p'(70)
     string_ids:
-        _init_string            string_id_item _init_data            ;  0 "<init>"
-        _hello_world_string     string_id_item _hello_world_data     ;  1 "Hello, World!"
-        _activity_string        string_id_item _activity_data        ;  2 "Landroid/app/Activity;"
-        _context_string         string_id_item _context_data         ;  3 "Landroid/content/Context;"
-        _bundle_string          string_id_item _bundle_data          ;  4 "Landroid/os/Bundle;"
-        _view_string            string_id_item _view_data            ;  5 "Landroid/view/View;"
-        _textview_string        string_id_item _textview_data        ;  6 "Landroid/widget/TextView;"
-        _class_hello_string     string_id_item _class_hello_data     ;  7 "Lapp/hello/HelloWorld;"
-        _charsequence_string    string_id_item _charsequence_data    ;  8 "Ljava/lang/CharSequence;"
-        _object_string          string_id_item _object_data          ;  9 "Ljava/lang/Object;"
-        _void_string            string_id_item _void_data            ; 10 "V"
-        _shorty_vl_string       string_id_item _shorty_vl_data       ; 11 "VL"
-        _oncreate_string        string_id_item _oncreate_data        ; 12 "onCreate"
-        _setcontentview_string  string_id_item _setcontentview_data  ; 13 "setContentView"
-        _settext_string         string_id_item _settext_data         ; 14 "setText"
+        emit_string_ids _strings
 
     ; ── type_ids ──────────────────────────────────────────
     ; Sorted by string_idx ascending
@@ -70,21 +69,7 @@ __global::
 
     data:
         data_strings:
-            _init_data           defstring "<init>"
-            _hello_world_data    defstring "Hello, World!"
-            _activity_data       defstring "Landroid/app/Activity;"
-            _context_data        defstring "Landroid/content/Context;"
-            _bundle_data         defstring "Landroid/os/Bundle;"
-            _view_data           defstring "Landroid/view/View;"
-            _textview_data       defstring "Landroid/widget/TextView;"
-            _class_hello_data    defstring "Lapp/hello/HelloWorld;"
-            _charsequence_data   defstring "Ljava/lang/CharSequence;"
-            _object_data         defstring "Ljava/lang/Object;"
-            _void_data           defstring "V"
-            _shorty_vl_data      defstring "VL"
-            _oncreate_data       defstring "onCreate"
-            _setcontentview_data defstring "setContentView"
-            _settext_data        defstring "setText"
+            emit_string_data _strings
 
         align $04
 

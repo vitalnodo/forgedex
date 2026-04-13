@@ -7,108 +7,110 @@ org $00
 
 include '../../forgedex.inc'
 
+macro _strings
+    defstr _plus,      "+"
+    defstr _minus,     "-"
+    defstr _s0,        "0"
+    defstr _init,      "<init>"
+    defstr _I,         "I"
+    defstr _LI,        "LI"
+    defstr _activity,  "Landroid/app/Activity;"
+    defstr _context,   "Landroid/content/Context;"
+    defstr _bundle,    "Landroid/os/Bundle;"
+    defstr _oncl,      "Landroid/view/View$OnClickListener;"
+    defstr _view,      "Landroid/view/View;"
+    defstr _button,    "Landroid/widget/Button;"
+    defstr _ll,        "Landroid/widget/LinearLayout;"
+    defstr _textview,  "Landroid/widget/TextView;"
+    defstr _hello,     "Lapp/hello/counter_plus_minus/HelloWorld;"
+    defstr _charseq,   "Ljava/lang/CharSequence;"
+    defstr _integer,   "Ljava/lang/Integer;"
+    defstr _object,    "Ljava/lang/Object;"
+    defstr _string,    "Ljava/lang/String;"
+    defstr _V,         "V"
+    defstr _VI,        "VI"
+    defstr _VL,        "VL"
+    defstr _addview,   "addView"
+    defstr _btn_minus, "btn_minus"
+    defstr _btn_plus,  "btn_plus"
+    defstr _count,     "count"
+    defstr _onclick,   "onClick"
+    defstr _oncreate,  "onCreate"
+    defstr _setcv,     "setContentView"
+    defstr _setoncl,   "setOnClickListener"
+    defstr _setorient, "setOrientation"
+    defstr _settext,   "setText"
+    defstr _tostring,  "toString"
+    defstr _tv,        "tv"
+end macro
+
 postpone
 __global::
 
     dex_header
 
-    ; ── string_ids ────────────────────────────────────────
-    ; Sorted by MUTF-8 unsigned byte order
     string_ids:
-        _plus_str        string_id_item _plus_data        ;  0 "+"
-        _minus_str       string_id_item _minus_data       ;  1 "-"
-        _s0_str          string_id_item _s0_data          ;  2 "0"
-        _init_str        string_id_item _init_data        ;  3 "<init>"
-        _I_str           string_id_item _I_data           ;  4 "I"
-        _LI_str          string_id_item _LI_data          ;  5 "LI"
-        _activity_str    string_id_item _activity_data    ;  6 "Landroid/app/Activity;"
-        _context_str     string_id_item _context_data     ;  7 "Landroid/content/Context;"
-        _bundle_str      string_id_item _bundle_data      ;  8 "Landroid/os/Bundle;"
-        _oncl_str        string_id_item _oncl_data        ;  9 "Landroid/view/View$OnClickListener;"
-        _view_str        string_id_item _view_data        ; 10 "Landroid/view/View;"
-        _button_str      string_id_item _button_data      ; 11 "Landroid/widget/Button;"
-        _ll_str          string_id_item _ll_data          ; 12 "Landroid/widget/LinearLayout;"
-        _textview_str    string_id_item _textview_data    ; 13 "Landroid/widget/TextView;"
-        _hello_str       string_id_item _hello_data       ; 14 "Lapp/hello/counter_plus_minus/HelloWorld;"
-        _charseq_str     string_id_item _charseq_data     ; 15 "Ljava/lang/CharSequence;"
-        _integer_str     string_id_item _integer_data     ; 16 "Ljava/lang/Integer;"
-        _object_str      string_id_item _object_data      ; 17 "Ljava/lang/Object;"
-        _string_str      string_id_item _string_data      ; 18 "Ljava/lang/String;"
-        _V_str           string_id_item _V_data           ; 19 "V"
-        _VI_str          string_id_item _VI_data          ; 20 "VI"
-        _VL_str          string_id_item _VL_data          ; 21 "VL"
-        _addview_str     string_id_item _addview_data     ; 22 "addView"
-        _btn_minus_str   string_id_item _btn_minus_data   ; 23 "btn_minus"
-        _btn_plus_str    string_id_item _btn_plus_data    ; 24 "btn_plus"
-        _count_str       string_id_item _count_data       ; 25 "count"
-        _onclick_str     string_id_item _onclick_data     ; 26 "onClick"
-        _oncreate_str    string_id_item _oncreate_data    ; 27 "onCreate"
-        _setcv_str       string_id_item _setcv_data       ; 28 "setContentView"
-        _setoncl_str     string_id_item _setoncl_data     ; 29 "setOnClickListener"
-        _setorient_str   string_id_item _setorient_data   ; 30 "setOrientation"
-        _settext_str     string_id_item _settext_data     ; 31 "setText"
-        _tostring_str    string_id_item _tostring_data    ; 32 "toString"
-        _tv_str          string_id_item _tv_data          ; 33 "tv"
+        emit_string_ids _strings
 
     ; ── type_ids ──────────────────────────────────────────
     ; Sorted by string_idx ascending
     type_ids:
-        _I_type        type_id_item _I_str          ; [0]  int
-        _activity_type type_id_item _activity_str   ; [1]  Activity
-        _context_type  type_id_item _context_str    ; [2]  Context
-        _bundle_type   type_id_item _bundle_str     ; [3]  Bundle
-        _oncl_type     type_id_item _oncl_str       ; [4]  OnClickListener
-        _view_type     type_id_item _view_str       ; [5]  View
-        _button_type   type_id_item _button_str     ; [6]  Button
-        _ll_type       type_id_item _ll_str         ; [7]  LinearLayout
-        _textview_type type_id_item _textview_str   ; [8]  TextView
-        _hello_type    type_id_item _hello_str      ; [9]  HelloWorld
-        _charseq_type  type_id_item _charseq_str    ; [10] CharSequence
-        _integer_type  type_id_item _integer_str    ; [11] Integer
-        _object_type   type_id_item _object_str     ; [12] Object
-        _string_type   type_id_item _string_str     ; [13] String
-        _void_type     type_id_item _V_str          ; [14] V
+        _I_type        type_id_item _I_string          ; [0]  int
+        _activity_type type_id_item _activity_string   ; [1]  Activity
+        _context_type  type_id_item _context_string    ; [2]  Context
+        _bundle_type   type_id_item _bundle_string     ; [3]  Bundle
+        _oncl_type     type_id_item _oncl_string       ; [4]  OnClickListener
+        _view_type     type_id_item _view_string       ; [5]  View
+        _button_type   type_id_item _button_string     ; [6]  Button
+        _ll_type       type_id_item _ll_string         ; [7]  LinearLayout
+        _textview_type type_id_item _textview_string   ; [8]  TextView
+        _hello_type    type_id_item _hello_string      ; [9]  HelloWorld
+        _charseq_type  type_id_item _charseq_string    ; [10] CharSequence
+        _integer_type  type_id_item _integer_string    ; [11] Integer
+        _object_type   type_id_item _object_string     ; [12] Object
+        _string_type   type_id_item _string_string     ; [13] String
+        _void_type     type_id_item _V_string          ; [14] V
 
     ; ── proto_ids ─────────────────────────────────────────
     ; Sorted by (return_type_idx, first_param_type_idx):
     ;   return String[13] before return void[14]
     ;   void protos: ()V < (I)V[0] < (Context)V[2] < (Bundle)V[3] < (OnCl)V[4] < (View)V[5] < (CharSeq)V[10]
     proto_ids:
-        _I_str_proto   proto_id_item _LI_str, _string_type, _I_tl        ; [0] (I)String
-        _void_proto    proto_id_item _V_str,  _void_type,   $00          ; [1] ()V
-        _I_v_proto     proto_id_item _VI_str, _void_type,   _I_tl        ; [2] (I)V
-        _context_proto proto_id_item _VL_str, _void_type,   _context_tl  ; [3] (Context)V
-        _bundle_proto  proto_id_item _VL_str, _void_type,   _bundle_tl   ; [4] (Bundle)V
-        _oncl_proto    proto_id_item _VL_str, _void_type,   _oncl_tl     ; [5] (OnClickListener)V
-        _view_proto    proto_id_item _VL_str, _void_type,   _view_tl     ; [6] (View)V
-        _charseq_proto proto_id_item _VL_str, _void_type,   _charseq_tl  ; [7] (CharSequence)V
+        _I_str_proto   proto_id_item _LI_string, _string_type, _I_tl        ; [0] (I)String
+        _void_proto    proto_id_item _V_string,  _void_type,   $00          ; [1] ()V
+        _I_v_proto     proto_id_item _VI_string, _void_type,   _I_tl        ; [2] (I)V
+        _context_proto proto_id_item _VL_string, _void_type,   _context_tl  ; [3] (Context)V
+        _bundle_proto  proto_id_item _VL_string, _void_type,   _bundle_tl   ; [4] (Bundle)V
+        _oncl_proto    proto_id_item _VL_string, _void_type,   _oncl_tl     ; [5] (OnClickListener)V
+        _view_proto    proto_id_item _VL_string, _void_type,   _view_tl     ; [6] (View)V
+        _charseq_proto proto_id_item _VL_string, _void_type,   _charseq_tl  ; [7] (CharSequence)V
 
     ; ── field_ids ─────────────────────────────────────────
     ; Sorted by (class_idx=9, name_idx): btn_minus[23] < btn_plus[24] < count[25] < tv[33]
     field_ids:
-        _f_btn_minus field_id_item _hello_type, _button_type,   _btn_minus_str ; [0]
-        _f_btn_plus  field_id_item _hello_type, _button_type,   _btn_plus_str  ; [1]
-        _f_count     field_id_item _hello_type, _I_type,        _count_str     ; [2]
-        _f_tv        field_id_item _hello_type, _textview_type, _tv_str        ; [3]
+        _f_btn_minus field_id_item _hello_type, _button_type,   _btn_minus_string ; [0]
+        _f_btn_plus  field_id_item _hello_type, _button_type,   _btn_plus_string  ; [1]
+        _f_count     field_id_item _hello_type, _I_type,        _count_string     ; [2]
+        _f_tv        field_id_item _hello_type, _textview_type, _tv_string        ; [3]
 
     ; ── method_ids ────────────────────────────────────────
     ; Sorted by (class_idx, proto_idx, name_idx)
     method_ids:
-        _act_init_m   method_id_item _activity_type, _void_proto,    _init_str     ; [0]
-        _act_oncr_m   method_id_item _activity_type, _bundle_proto,  _oncreate_str ; [1]
-        _act_setcv_m  method_id_item _activity_type, _view_proto,    _setcv_str    ; [2]
-        _btn_init_m   method_id_item _button_type,   _context_proto, _init_str     ; [3]
-        _btn_setocl_m method_id_item _button_type,   _oncl_proto,    _setoncl_str  ; [4]
-        _btn_settt_m  method_id_item _button_type,   _charseq_proto, _settext_str  ; [5]
-        _ll_init_m    method_id_item _ll_type,       _context_proto, _init_str     ; [6]
-        _ll_addview_m method_id_item _ll_type,       _view_proto,    _addview_str  ; [7]
-        _ll_setor_m   method_id_item _ll_type,       _I_v_proto,     _setorient_str; [8]
-        _tv_init_m    method_id_item _textview_type, _context_proto, _init_str     ; [9]
-        _tv_settt_m   method_id_item _textview_type, _charseq_proto, _settext_str  ; [10]
-        _hw_init_m    method_id_item _hello_type,    _void_proto,    _init_str     ; [11]
-        _hw_ocl_m     method_id_item _hello_type,    _view_proto,    _onclick_str  ; [12]
-        _hw_oncr_m    method_id_item _hello_type,    _bundle_proto,  _oncreate_str ; [13]
-        _int_tos_m    method_id_item _integer_type,  _I_str_proto,   _tostring_str ; [14]
+        _act_init_m   method_id_item _activity_type, _void_proto,    _init_string     ; [0]
+        _act_oncr_m   method_id_item _activity_type, _bundle_proto,  _oncreate_string ; [1]
+        _act_setcv_m  method_id_item _activity_type, _view_proto,    _setcv_string    ; [2]
+        _btn_init_m   method_id_item _button_type,   _context_proto, _init_string     ; [3]
+        _btn_setocl_m method_id_item _button_type,   _oncl_proto,    _setoncl_string  ; [4]
+        _btn_settt_m  method_id_item _button_type,   _charseq_proto, _settext_string  ; [5]
+        _ll_init_m    method_id_item _ll_type,       _context_proto, _init_string     ; [6]
+        _ll_addview_m method_id_item _ll_type,       _view_proto,    _addview_string  ; [7]
+        _ll_setor_m   method_id_item _ll_type,       _I_v_proto,     _setorient_string; [8]
+        _tv_init_m    method_id_item _textview_type, _context_proto, _init_string     ; [9]
+        _tv_settt_m   method_id_item _textview_type, _charseq_proto, _settext_string  ; [10]
+        _hw_init_m    method_id_item _hello_type,    _void_proto,    _init_string     ; [11]
+        _hw_ocl_m     method_id_item _hello_type,    _view_proto,    _onclick_string  ; [12]
+        _hw_oncr_m    method_id_item _hello_type,    _bundle_proto,  _oncreate_string ; [13]
+        _int_tos_m    method_id_item _integer_type,  _I_str_proto,   _tostring_string ; [14]
 
     class_defs:
         _hello_class class_def_item \
@@ -119,42 +121,8 @@ __global::
     ;  Data section
     ; ══════════════════════════════════════════════════════
     data:
-
         data_strings:
-            _plus_data      defstring "+"
-            _minus_data     defstring "-"
-            _s0_data        defstring "0"
-            _init_data      defstring "<init>"
-            _I_data         defstring "I"
-            _LI_data        defstring "LI"
-            _activity_data  defstring "Landroid/app/Activity;"
-            _context_data   defstring "Landroid/content/Context;"
-            _bundle_data    defstring "Landroid/os/Bundle;"
-            _oncl_data      defstring "Landroid/view/View$OnClickListener;"
-            _view_data      defstring "Landroid/view/View;"
-            _button_data    defstring "Landroid/widget/Button;"
-            _ll_data        defstring "Landroid/widget/LinearLayout;"
-            _textview_data  defstring "Landroid/widget/TextView;"
-            _hello_data     defstring "Lapp/hello/counter_plus_minus/HelloWorld;"
-            _charseq_data   defstring "Ljava/lang/CharSequence;"
-            _integer_data   defstring "Ljava/lang/Integer;"
-            _object_data    defstring "Ljava/lang/Object;"
-            _string_data    defstring "Ljava/lang/String;"
-            _V_data         defstring "V"
-            _VI_data        defstring "VI"
-            _VL_data        defstring "VL"
-            _addview_data   defstring "addView"
-            _btn_minus_data defstring "btn_minus"
-            _btn_plus_data  defstring "btn_plus"
-            _count_data     defstring "count"
-            _onclick_data   defstring "onClick"
-            _oncreate_data  defstring "onCreate"
-            _setcv_data     defstring "setContentView"
-            _setoncl_data   defstring "setOnClickListener"
-            _setorient_data defstring "setOrientation"
-            _settext_data   defstring "setText"
-            _tostring_data  defstring "toString"
-            _tv_data        defstring "tv"
+            emit_string_data _strings
 
         align $04
 
@@ -265,18 +233,18 @@ _oncreate_insns::
     invoke_virtual _ll_setor_m, v0, v4                  ; setOrientation
     new_instance   v1, _textview_type                   ; new TextView
     invoke_direct  _tv_init_m, v1, v5                   ; TextView.<init>
-    const_string   v4, _s0_str                          ; "0"
+    const_string   v4, _s0_string                          ; "0"
     invoke_virtual _tv_settt_m, v1, v4                  ; setText
     iput_object    v1, v5, _f_tv                        ; this.tv = tv
     new_instance   v2, _button_type                     ; new Button
     invoke_direct  _btn_init_m, v2, v5                  ; Button.<init>
-    const_string   v4, _plus_str                        ; "+"
+    const_string   v4, _plus_string                        ; "+"
     invoke_virtual _btn_settt_m, v2, v4                 ; setText
     invoke_virtual _btn_setocl_m, v2, v5                ; setOnClickListener
     iput_object    v2, v5, _f_btn_plus                  ; this.btn_plus = btn
     new_instance   v3, _button_type                     ; new Button
     invoke_direct  _btn_init_m, v3, v5                  ; Button.<init>
-    const_string   v4, _minus_str                       ; "-"
+    const_string   v4, _minus_string                       ; "-"
     invoke_virtual _btn_settt_m, v3, v4                 ; setText
     invoke_virtual _btn_setocl_m, v3, v5                ; setOnClickListener
     iput_object    v3, v5, _f_btn_minus                 ; this.btn_minus = btn

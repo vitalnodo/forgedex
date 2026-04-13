@@ -26,95 +26,91 @@ org $00
 
 include '../../forgedex.inc'
 
+macro _strings
+    defstr _s0,       "0"
+    defstr _init,     "<init>"
+    defstr _I,        "I"
+    defstr _LI,       "LI"
+    defstr _activity, "Landroid/app/Activity;"
+    defstr _context,  "Landroid/content/Context;"
+    defstr _bundle,   "Landroid/os/Bundle;"
+    defstr _oncl,     "Landroid/view/View$OnClickListener;"
+    defstr _view,     "Landroid/view/View;"
+    defstr _button,   "Landroid/widget/Button;"
+    defstr _hello,    "Lapp/hello/counter_button/CounterButton;"
+    defstr _charseq,  "Ljava/lang/CharSequence;"
+    defstr _integer,  "Ljava/lang/Integer;"
+    defstr _object,   "Ljava/lang/Object;"
+    defstr _string,   "Ljava/lang/String;"
+    defstr _V,        "V"
+    defstr _VL,       "VL"
+    defstr _btn,      "btn"
+    defstr _count,    "count"
+    defstr _onclick,  "onClick"
+    defstr _oncreate, "onCreate"
+    defstr _setcv,    "setContentView"
+    defstr _setoncl,  "setOnClickListener"
+    defstr _settext,  "setText"
+    defstr _tostring, "toString"
+end macro
+
 postpone
 __global::
 
     dex_header
 
-    ; ── string_ids ────────────────────────────────────────
-    ; Sorted by MUTF-8 unsigned byte order:
-    ; '0'(30) < '<'(3C) < 'I'(49) < 'L'(4C)
-    ; "La..." < "Lj..." because 'a'(61) < 'j'(6A)
-    ; Among "Landroid/": /a < /c < /o < /v < /w
-    ; "Landroid/view/View$" < "Landroid/view/View;" because '$'(24) < ';'(3B)
-    ; "Landroid/..." < "Lapp/..." because 'n'(6E) < 'p'(70)
-    ; Among "Ljava/lang/": C < I < O < S
     string_ids:
-        _s0_str         string_id_item _s0_data           ;  0  "0"
-        _init_str       string_id_item _init_data         ;  1  "<init>"
-        _I_str          string_id_item _I_data            ;  2  "I"
-        _LI_str         string_id_item _LI_data           ;  3  "LI"
-        _activity_str   string_id_item _activity_data     ;  4  "Landroid/app/Activity;"
-        _context_str    string_id_item _context_data      ;  5  "Landroid/content/Context;"
-        _bundle_str     string_id_item _bundle_data       ;  6  "Landroid/os/Bundle;"
-        _oncl_str       string_id_item _oncl_data         ;  7  "Landroid/view/View$OnClickListener;"
-        _view_str       string_id_item _view_data         ;  8  "Landroid/view/View;"
-        _button_str     string_id_item _button_data       ;  9  "Landroid/widget/Button;"
-        _hello_str      string_id_item _hello_data        ; 10  "Lapp/hello/counter_button/CounterButton;"
-        _charseq_str    string_id_item _charseq_data      ; 11  "Ljava/lang/CharSequence;"
-        _integer_str    string_id_item _integer_data      ; 12  "Ljava/lang/Integer;"
-        _object_str     string_id_item _object_data       ; 13  "Ljava/lang/Object;"
-        _string_str     string_id_item _string_data       ; 14  "Ljava/lang/String;"
-        _V_str          string_id_item _V_data            ; 15  "V"
-        _VL_str         string_id_item _VL_data           ; 16  "VL"
-        _btn_str        string_id_item _btn_data          ; 17  "btn"
-        _count_str      string_id_item _count_data        ; 18  "count"
-        _onclick_str    string_id_item _onclick_data      ; 19  "onClick"
-        _oncreate_str   string_id_item _oncreate_data     ; 20  "onCreate"
-        _setcv_str      string_id_item _setcv_data        ; 21  "setContentView"
-        _setoncl_str    string_id_item _setoncl_data      ; 22  "setOnClickListener"
-        _settext_str    string_id_item _settext_data      ; 23  "setText"
-        _tostring_str   string_id_item _tostring_data     ; 24  "toString"
+        emit_string_ids _strings
 
     ; ── type_ids ──────────────────────────────────────────
     ; Sorted by string_idx ascending
     type_ids:
-        _I_type        type_id_item _I_str         ; [0]  "I"       int
-        _activity_type type_id_item _activity_str  ; [1]  Activity
-        _context_type  type_id_item _context_str   ; [2]  Context
-        _bundle_type   type_id_item _bundle_str    ; [3]  Bundle
-        _oncl_type     type_id_item _oncl_str      ; [4]  OnClickListener
-        _view_type     type_id_item _view_str      ; [5]  View
-        _button_type   type_id_item _button_str    ; [6]  Button
-        _hello_type    type_id_item _hello_str     ; [7]  HelloWorld
-        _charseq_type  type_id_item _charseq_str   ; [8]  CharSequence
-        _integer_type  type_id_item _integer_str   ; [9]  Integer
-        _object_type   type_id_item _object_str    ; [10] Object
-        _string_type   type_id_item _string_str    ; [11] String
-        _void_type     type_id_item _V_str         ; [12] V
+        _I_type        type_id_item _I_string         ; [0]  "I"       int
+        _activity_type type_id_item _activity_string  ; [1]  Activity
+        _context_type  type_id_item _context_string   ; [2]  Context
+        _bundle_type   type_id_item _bundle_string    ; [3]  Bundle
+        _oncl_type     type_id_item _oncl_string      ; [4]  OnClickListener
+        _view_type     type_id_item _view_string      ; [5]  View
+        _button_type   type_id_item _button_string    ; [6]  Button
+        _hello_type    type_id_item _hello_string     ; [7]  HelloWorld
+        _charseq_type  type_id_item _charseq_string   ; [8]  CharSequence
+        _integer_type  type_id_item _integer_string   ; [9]  Integer
+        _object_type   type_id_item _object_string    ; [10] Object
+        _string_type   type_id_item _string_string    ; [11] String
+        _void_type     type_id_item _V_string         ; [12] V
 
     ; ── proto_ids ─────────────────────────────────────────
     ; Sorted by (return_type_idx, param_type_idx):
     ;   return String(11) before return void(12)
     ;   void protos: ()V, (Context)V, (Bundle)V, (OnCl)V, (View)V, (CharSeq)V
     proto_ids:
-        _int_str_proto  proto_id_item _LI_str, _string_type, _int_tl      ; [0] (int)String
-        _void_proto     proto_id_item _V_str,  _void_type,   $00          ; [1] ()V
-        _context_proto  proto_id_item _VL_str, _void_type,   _context_tl  ; [2] (Context)V
-        _bundle_proto   proto_id_item _VL_str, _void_type,   _bundle_tl   ; [3] (Bundle)V
-        _oncl_proto     proto_id_item _VL_str, _void_type,   _oncl_tl     ; [4] (OnClickListener)V
-        _view_proto     proto_id_item _VL_str, _void_type,   _view_tl     ; [5] (View)V
-        _charseq_proto  proto_id_item _VL_str, _void_type,   _charseq_tl  ; [6] (CharSequence)V
+        _int_str_proto  proto_id_item _LI_string, _string_type, _int_tl      ; [0] (int)String
+        _void_proto     proto_id_item _V_string,  _void_type,   $00          ; [1] ()V
+        _context_proto  proto_id_item _VL_string, _void_type,   _context_tl  ; [2] (Context)V
+        _bundle_proto   proto_id_item _VL_string, _void_type,   _bundle_tl   ; [3] (Bundle)V
+        _oncl_proto     proto_id_item _VL_string, _void_type,   _oncl_tl     ; [4] (OnClickListener)V
+        _view_proto     proto_id_item _VL_string, _void_type,   _view_tl     ; [5] (View)V
+        _charseq_proto  proto_id_item _VL_string, _void_type,   _charseq_tl  ; [6] (CharSequence)V
 
     ; ── field_ids ─────────────────────────────────────────
     ; Sorted by (class_idx=7, type_idx): Button(6) < I(0) — wait: btn field_idx=0 < count field_idx=1
     field_ids:
-        _btn_field   field_id_item _hello_type, _button_type, _btn_str   ; [0] HelloWorld.btn:Button
-        _count_field field_id_item _hello_type, _I_type,      _count_str ; [1] HelloWorld.count:int
+        _btn_field   field_id_item _hello_type, _button_type, _btn_string   ; [0] HelloWorld.btn:Button
+        _count_field field_id_item _hello_type, _I_type,      _count_string ; [1] HelloWorld.count:int
 
     ; ── method_ids ────────────────────────────────────────
     ; Sorted by (class_idx, proto_idx, name_idx)
     method_ids:
-        _act_init_m   method_id_item _activity_type, _void_proto,    _init_str     ; [0] Activity.<init>
-        _act_oncr_m   method_id_item _activity_type, _bundle_proto,  _oncreate_str ; [1] Activity.onCreate
-        _act_setcv_m  method_id_item _activity_type, _view_proto,    _setcv_str    ; [2] Activity.setContentView
-        _btn_init_m   method_id_item _button_type,   _context_proto, _init_str     ; [3] Button.<init>
-        _btn_setocl_m method_id_item _button_type,   _oncl_proto,    _setoncl_str  ; [4] Button.setOnClickListener
-        _btn_settt_m  method_id_item _button_type,   _charseq_proto, _settext_str  ; [5] Button.setText
-        _hw_init_m    method_id_item _hello_type,    _void_proto,    _init_str     ; [6] HelloWorld.<init>
-        _hw_ocl_m     method_id_item _hello_type,    _view_proto,    _onclick_str  ; [7] HelloWorld.onClick
-        _hw_oncr_m    method_id_item _hello_type,    _bundle_proto,  _oncreate_str ; [8] HelloWorld.onCreate
-        _int_tos_m    method_id_item _integer_type,  _int_str_proto, _tostring_str ; [9] Integer.toString
+        _act_init_m   method_id_item _activity_type, _void_proto,    _init_string     ; [0] Activity.<init>
+        _act_oncr_m   method_id_item _activity_type, _bundle_proto,  _oncreate_string ; [1] Activity.onCreate
+        _act_setcv_m  method_id_item _activity_type, _view_proto,    _setcv_string    ; [2] Activity.setContentView
+        _btn_init_m   method_id_item _button_type,   _context_proto, _init_string     ; [3] Button.<init>
+        _btn_setocl_m method_id_item _button_type,   _oncl_proto,    _setoncl_string  ; [4] Button.setOnClickListener
+        _btn_settt_m  method_id_item _button_type,   _charseq_proto, _settext_string  ; [5] Button.setText
+        _hw_init_m    method_id_item _hello_type,    _void_proto,    _init_string     ; [6] HelloWorld.<init>
+        _hw_ocl_m     method_id_item _hello_type,    _view_proto,    _onclick_string  ; [7] HelloWorld.onClick
+        _hw_oncr_m    method_id_item _hello_type,    _bundle_proto,  _oncreate_string ; [8] HelloWorld.onCreate
+        _int_tos_m    method_id_item _integer_type,  _int_str_proto, _tostring_string ; [9] Integer.toString
 
     ; ── class_defs ────────────────────────────────────────
     class_defs:
@@ -126,33 +122,8 @@ __global::
     ;  Data section
     ; ══════════════════════════════════════════════════════
     data:
-
         data_strings:
-            _s0_data        defstring "0"
-            _init_data      defstring "<init>"
-            _I_data         defstring "I"
-            _LI_data        defstring "LI"
-            _activity_data  defstring "Landroid/app/Activity;"
-            _context_data   defstring "Landroid/content/Context;"
-            _bundle_data    defstring "Landroid/os/Bundle;"
-            _oncl_data      defstring "Landroid/view/View$OnClickListener;"
-            _view_data      defstring "Landroid/view/View;"
-            _button_data    defstring "Landroid/widget/Button;"
-            _hello_data     defstring "Lapp/hello/counter_button/CounterButton;"
-            _charseq_data   defstring "Ljava/lang/CharSequence;"
-            _integer_data   defstring "Ljava/lang/Integer;"
-            _object_data    defstring "Ljava/lang/Object;"
-            _string_data    defstring "Ljava/lang/String;"
-            _V_data         defstring "V"
-            _VL_data        defstring "VL"
-            _btn_data       defstring "btn"
-            _count_data     defstring "count"
-            _onclick_data   defstring "onClick"
-            _oncreate_data  defstring "onCreate"
-            _setcv_data     defstring "setContentView"
-            _setoncl_data   defstring "setOnClickListener"
-            _settext_data   defstring "setText"
-            _tostring_data  defstring "toString"
+            emit_string_data _strings
 
         align $04
 
@@ -235,7 +206,7 @@ _oncreate_insns::
     invoke_super   _act_oncr_m, v2, v3                  ; Activity.onCreate
     new_instance   v0, _button_type                     ; new Button
     invoke_direct  _btn_init_m, v0, v2                  ; Button.<init>
-    const_string   v1, _s0_str                          ; "0"
+    const_string   v1, _s0_string                          ; "0"
     invoke_virtual _btn_settt_m, v0, v1                 ; setText
     invoke_virtual _btn_setocl_m, v0, v2                ; setOnClickListener
     iput_object    v0, v2, _btn_field                   ; this.btn = btn

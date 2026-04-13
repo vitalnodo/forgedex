@@ -702,3 +702,36 @@ macro dex_footer?
 
     emit_checksums
 end macro
+
+; ── String list helpers ──────────────────────────────────
+;
+;  Usage:
+;      macro _strings
+;          defstr _init,  "<init>"
+;          defstr _void,  "V"
+;      end macro
+;
+;      string_ids:
+;          emit_string_ids _strings
+;      data:
+;          emit_string_data _strings
+
+__defstr_mode = 0
+
+macro defstr? base?*, text?*&
+    if __defstr_mode = 0
+        base#_string string_id_item base#_data
+    else
+        base#_data defstring text
+    end if
+end macro
+
+macro emit_string_ids? callback?*
+    __defstr_mode = 0
+    callback
+end macro
+
+macro emit_string_data? callback?*
+    __defstr_mode = 1
+    callback
+end macro
