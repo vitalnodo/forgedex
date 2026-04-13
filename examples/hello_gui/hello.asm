@@ -11,10 +11,10 @@ macro _strings
     defstr _bundle,          "Landroid/os/Bundle;"
     defstr _view,            "Landroid/view/View;"
     defstr _textview,        "Landroid/widget/TextView;"
-    defstr _class_hello,     "Lapp/hello/HelloWorld;"
+    defstr _hello,           "Lapp/hello/HelloWorld;"
     defstr _charsequence,    "Ljava/lang/CharSequence;"
     defstr _object,          "Ljava/lang/Object;"
-    defstr _void,            "V"
+    defstr _V,               "V"
     defstr _shorty_vl,       "VL"
     defstr _oncreate,        "onCreate"
     defstr _setcontentview,  "setContentView"
@@ -29,27 +29,25 @@ __global::
     string_ids:
         emit_string_ids _strings
 
-    ; ── type_ids ──────────────────────────────────────────
-    ; Sorted by string_idx ascending
     type_ids:
-        _activity_type      type_id_item _activity_string       ; [0] string[2]
-        _context_type       type_id_item _context_string        ; [1] string[3]
-        _bundle_type        type_id_item _bundle_string         ; [2] string[4]
-        _view_type          type_id_item _view_string           ; [3] string[5]
-        _textview_type      type_id_item _textview_string       ; [4] string[6]
-        _hello_type         type_id_item _class_hello_string    ; [5] string[7]
-        _charsequence_type  type_id_item _charsequence_string   ; [6] string[8]
-        _object_type        type_id_item _object_string         ; [7] string[9]
-        _void_type          type_id_item _void_string           ; [8] string[10]
+        deftype _activity
+        deftype _context
+        deftype _bundle
+        deftype _view
+        deftype _textview
+        deftype _hello
+        deftype _charsequence
+        deftype _object
+        deftype _V
 
     ; ── proto_ids ─────────────────────────────────────────
     ; All return void (type[8]), sorted by param type_idx: none < 1 < 2 < 3 < 6
     proto_ids:
-        _void_v_proto     proto_id_item _void_string,      _void_type, $00             ; [0] ()V
-        _context_v_proto  proto_id_item _shorty_vl_string, _void_type, _context_v_tl  ; [1] (Context)V
-        _bundle_v_proto   proto_id_item _shorty_vl_string, _void_type, _bundle_v_tl   ; [2] (Bundle)V
-        _view_v_proto     proto_id_item _shorty_vl_string, _void_type, _view_v_tl     ; [3] (View)V
-        _charseq_v_proto  proto_id_item _shorty_vl_string, _void_type, _charseq_v_tl  ; [4] (CharSequence)V
+        _void_v_proto     proto_id_item _V_string,         _V_type, $00             ; [0] ()V
+        _context_v_proto  proto_id_item _shorty_vl_string, _V_type, _context_v_tl   ; [1] (Context)V
+        _bundle_v_proto   proto_id_item _shorty_vl_string, _V_type, _bundle_v_tl    ; [2] (Bundle)V
+        _view_v_proto     proto_id_item _shorty_vl_string, _V_type, _view_v_tl      ; [3] (View)V
+        _charseq_v_proto  proto_id_item _shorty_vl_string, _V_type, _charseq_v_tl   ; [4] (CharSequence)V
 
     ; ── method_ids ────────────────────────────────────────
     ; Sorted by (class_idx, proto_idx, name_idx)

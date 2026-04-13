@@ -735,3 +735,7 @@ macro emit_string_data? callback?*
     __defstr_mode = 1
     callback
 end macro
+
+macro deftype? base?*
+    base#_type type_id_item base#_string
+end macro

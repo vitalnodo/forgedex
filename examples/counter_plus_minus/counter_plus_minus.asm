@@ -52,24 +52,23 @@ __global::
     string_ids:
         emit_string_ids _strings
 
-    ; ── type_ids ──────────────────────────────────────────
-    ; Sorted by string_idx ascending
     type_ids:
-        _I_type        type_id_item _I_string          ; [0]  int
-        _activity_type type_id_item _activity_string   ; [1]  Activity
-        _context_type  type_id_item _context_string    ; [2]  Context
-        _bundle_type   type_id_item _bundle_string     ; [3]  Bundle
-        _oncl_type     type_id_item _oncl_string       ; [4]  OnClickListener
-        _view_type     type_id_item _view_string       ; [5]  View
-        _button_type   type_id_item _button_string     ; [6]  Button
-        _ll_type       type_id_item _ll_string         ; [7]  LinearLayout
-        _textview_type type_id_item _textview_string   ; [8]  TextView
-        _hello_type    type_id_item _hello_string      ; [9]  HelloWorld
-        _charseq_type  type_id_item _charseq_string    ; [10] CharSequence
-        _integer_type  type_id_item _integer_string    ; [11] Integer
-        _object_type   type_id_item _object_string     ; [12] Object
-        _string_type   type_id_item _string_string     ; [13] String
-        _void_type     type_id_item _V_string          ; [14] V
+        deftype _I
+        deftype _activity
+        deftype _context
+        deftype _bundle
+        deftype _oncl
+        deftype _view
+        deftype _button
+        deftype _ll
+        deftype _textview
+        deftype _hello
+        deftype _charseq
+        deftype _integer
+        deftype _object
+        deftype _string
+        deftype _V
+
 
     ; ── proto_ids ─────────────────────────────────────────
     ; Sorted by (return_type_idx, first_param_type_idx):
@@ -77,13 +76,13 @@ __global::
     ;   void protos: ()V < (I)V[0] < (Context)V[2] < (Bundle)V[3] < (OnCl)V[4] < (View)V[5] < (CharSeq)V[10]
     proto_ids:
         _I_str_proto   proto_id_item _LI_string, _string_type, _I_tl        ; [0] (I)String
-        _void_proto    proto_id_item _V_string,  _void_type,   $00          ; [1] ()V
-        _I_v_proto     proto_id_item _VI_string, _void_type,   _I_tl        ; [2] (I)V
-        _context_proto proto_id_item _VL_string, _void_type,   _context_tl  ; [3] (Context)V
-        _bundle_proto  proto_id_item _VL_string, _void_type,   _bundle_tl   ; [4] (Bundle)V
-        _oncl_proto    proto_id_item _VL_string, _void_type,   _oncl_tl     ; [5] (OnClickListener)V
-        _view_proto    proto_id_item _VL_string, _void_type,   _view_tl     ; [6] (View)V
-        _charseq_proto proto_id_item _VL_string, _void_type,   _charseq_tl  ; [7] (CharSequence)V
+        _void_proto    proto_id_item _V_string,  _V_type,   $00          ; [1] ()V
+        _I_v_proto     proto_id_item _VI_string, _V_type,   _I_tl        ; [2] (I)V
+        _context_proto proto_id_item _VL_string, _V_type,   _context_tl  ; [3] (Context)V
+        _bundle_proto  proto_id_item _VL_string, _V_type,   _bundle_tl   ; [4] (Bundle)V
+        _oncl_proto    proto_id_item _VL_string, _V_type,   _oncl_tl     ; [5] (OnClickListener)V
+        _view_proto    proto_id_item _VL_string, _V_type,   _view_tl     ; [6] (View)V
+        _charseq_proto proto_id_item _VL_string, _V_type,   _charseq_tl  ; [7] (CharSequence)V
 
     ; ── field_ids ─────────────────────────────────────────
     ; Sorted by (class_idx=9, name_idx): btn_minus[23] < btn_plus[24] < count[25] < tv[33]

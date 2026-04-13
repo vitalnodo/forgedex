@@ -55,34 +55,32 @@ __global::
     string_ids:
         emit_string_ids _strings
 
-    ; ── type_ids ──────────────────────────────────────────
-    ; Sorted by string_idx ascending
     type_ids:
-        _I_type        type_id_item _I_string          ; [0]  int
-        _activity_type type_id_item _activity_string   ; [1]  Activity
-        _context_type  type_id_item _context_string    ; [2]  Context
-        _bundle_type   type_id_item _bundle_string     ; [3]  Bundle
-        _view_type     type_id_item _view_string       ; [4]  View
-        _textview_type type_id_item _textview_string   ; [5]  TextView
-        _hello_type    type_id_item _hello_string      ; [6]  HelloWorld
-        _charseq_type  type_id_item _charseq_string    ; [7]  CharSequence
-        _integer_type  type_id_item _integer_string    ; [8]  Integer
-        _object_type   type_id_item _object_string     ; [9]  Object
-        _string_type   type_id_item _string_string     ; [10] String
-        _system_type   type_id_item _system_string     ; [11] System
-        _void_type     type_id_item _V_string          ; [12] V
+        deftype _I
+        deftype _activity
+        deftype _context
+        deftype _bundle
+        deftype _view
+        deftype _textview
+        deftype _hello
+        deftype _charseq
+        deftype _integer
+        deftype _object
+        deftype _string
+        deftype _system
+        deftype _V
 
     ; ── proto_ids ─────────────────────────────────────────
     proto_ids:
         _I_proto          proto_id_item _I_string,  _I_type,      $00          ; [0] ()I
         _string_ret_proto proto_id_item _L_string,  _string_type, $00          ; [1] ()String
         _I_str_proto      proto_id_item _LI_string, _string_type, _I_tl        ; [2] (I)String
-        _void_proto       proto_id_item _V_string,  _void_type,   $00          ; [3] ()V
-        _context_proto    proto_id_item _VL_string, _void_type,   _context_tl  ; [4] (Context)V
-        _bundle_proto     proto_id_item _VL_string, _void_type,   _bundle_tl   ; [5] (Bundle)V
-        _view_proto       proto_id_item _VL_string, _void_type,   _view_tl     ; [6] (View)V
-        _charseq_proto    proto_id_item _VL_string, _void_type,   _charseq_tl  ; [7] (CharSequence)V
-        _string_proto     proto_id_item _VL_string, _void_type,   _string_tl   ; [8] (String)V
+        _void_proto       proto_id_item _V_string,  _V_type,   $00          ; [3] ()V
+        _context_proto    proto_id_item _VL_string, _V_type,   _context_tl  ; [4] (Context)V
+        _bundle_proto     proto_id_item _VL_string, _V_type,   _bundle_tl   ; [5] (Bundle)V
+        _view_proto       proto_id_item _VL_string, _V_type,   _view_tl     ; [6] (View)V
+        _charseq_proto    proto_id_item _VL_string, _V_type,   _charseq_tl  ; [7] (CharSequence)V
+        _string_proto     proto_id_item _VL_string, _V_type,   _string_tl   ; [8] (String)V
 
     ; ── method_ids ────────────────────────────────────────
     ; Sorted by (class_idx, proto_idx, name_idx)
