@@ -40,23 +40,21 @@ __global::
         deftype _object
         deftype _V
 
-    ; ── proto_ids ─────────────────────────────────────────
     proto_ids:
-        _void_v_proto     proto_id_item _V_string,         _V_type, $00             ; [0] ()V
-        _context_v_proto  proto_id_item _shorty_vl_string, _V_type, _context_v_tl   ; [1] (Context)V
-        _bundle_v_proto   proto_id_item _shorty_vl_string, _V_type, _bundle_v_tl    ; [2] (Bundle)V
-        _view_v_proto     proto_id_item _shorty_vl_string, _V_type, _view_v_tl      ; [3] (View)V
-        _charseq_v_proto  proto_id_item _shorty_vl_string, _V_type, _charseq_v_tl   ; [4] (CharSequence)V
+        _void_v_proto     proto_id_item _V_string,         _V_type, $00
+        _context_v_proto  proto_id_item _shorty_vl_string, _V_type, _context_v_tl
+        _bundle_v_proto   proto_id_item _shorty_vl_string, _V_type, _bundle_v_tl
+        _view_v_proto     proto_id_item _shorty_vl_string, _V_type, _view_v_tl
+        _charseq_v_proto  proto_id_item _shorty_vl_string, _V_type, _charseq_v_tl
 
-    ; ── method_ids ────────────────────────────────────────
     method_ids:
-        _activity_init_method     method_id_item _activity_type, _void_v_proto,    _init_string           ; [0]
-        _activity_oncreate_method method_id_item _activity_type, _bundle_v_proto,  _oncreate_string       ; [1]
-        _activity_setcv_method    method_id_item _activity_type, _view_v_proto,    _setcontentview_string ; [2]
-        _textview_init_method     method_id_item _textview_type, _context_v_proto, _init_string           ; [3]
-        _textview_settext_method  method_id_item _textview_type, _charseq_v_proto, _settext_string        ; [4]
-        _hello_init_method        method_id_item _hello_type,    _void_v_proto,    _init_string           ; [5]
-        _hello_oncreate_method    method_id_item _hello_type,    _bundle_v_proto,  _oncreate_string       ; [6]
+        _activity_init_method     method_id_item _activity_type, _void_v_proto,    _init_string
+        _activity_oncreate_method method_id_item _activity_type, _bundle_v_proto,  _oncreate_string
+        _activity_setcv_method    method_id_item _activity_type, _view_v_proto,    _setcontentview_string
+        _textview_init_method     method_id_item _textview_type, _context_v_proto, _init_string
+        _textview_settext_method  method_id_item _textview_type, _charseq_v_proto, _settext_string
+        _hello_init_method        method_id_item _hello_type,    _void_v_proto,    _init_string
+        _hello_oncreate_method    method_id_item _hello_type,    _bundle_v_proto,  _oncreate_string
 
     class_defs:
         _hello_class class_def_item \
@@ -86,11 +84,33 @@ __global::
         align $04
 
         data_code:
-            _hello_init_code code_item $01, $01, $01, $00, $00, $04, _hello_init_insns
+
+        ; ── <init>()V ─────────────────────────────────────
+        ; v0 = this (p0)
+        virtual at $00
+        _hello_init_insns::
+            invoke_direct  _activity_init_method, v0
+            return_void
+        end virtual
+
+        _hello_init_code code_item $01, $01, $01, $00, $00, $04, _hello_init_insns
 
         align $04
 
-            _hello_oncreate_code code_item $04, $02, $02, $00, $00, $11, _hello_oncreate_insns
+        ; ── onCreate(Bundle)V ─────────────────────────────
+        ; registers=4, ins=2: v2=this(p0), v3=bundle(p1)
+        virtual at $00
+        _hello_oncreate_insns::
+            invoke_super   _activity_oncreate_method, v2, v3
+            new_instance   v0, _textview_type
+            invoke_direct  _textview_init_method, v0, v2
+            const_string   v1, _hello_world_string
+            invoke_virtual _textview_settext_method, v0, v1
+            invoke_virtual _activity_setcv_method, v2, v0
+            return_void
+        end virtual
+
+        _hello_oncreate_code code_item $04, $02, $02, $00, $00, $11, _hello_oncreate_insns
 
         align $04
 
@@ -99,25 +119,3 @@ __global::
     dex_footer
 
 end postpone
-
-; ── <init>()V ─────────────────────────────────────────────
-; v0 = this (p0)
-virtual at $00
-_hello_init_insns::
-    invoke_direct  _activity_init_method, v0            ; Activity.<init>
-    return_void
-end virtual
-
-; ── onCreate(Bundle)V ─────────────────────────────────────
-; registers=4, ins=2: v2=this(p0), v3=bundle(p1)
-; v0=TextView, v1="Hello, World!"
-virtual at $00
-_hello_oncreate_insns::
-    invoke_super   _activity_oncreate_method, v2, v3    ; Activity.onCreate
-    new_instance   v0, _textview_type                   ; new TextView
-    invoke_direct  _textview_init_method, v0, v2        ; TextView.<init>
-    const_string   v1, _hello_world_string              ; "Hello, World!"
-    invoke_virtual _textview_settext_method, v0, v1     ; setText
-    invoke_virtual _activity_setcv_method, v2, v0       ; setContentView
-    return_void
-end virtual
