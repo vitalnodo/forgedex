@@ -247,20 +247,7 @@ __global::
     link_data:
     header_end:
 
-    __snapshot_index string_ids_size, __string_id_item
-    __snapshot_index type_ids_size,   __type_id_item
-    __snapshot_index proto_ids_size,  __proto_id_item
-    __snapshot_index field_ids_size,  __field_id_item
-    __snapshot_index method_ids_size, __method_id_item
-    __snapshot_index class_defs_size, __class_def_item
-
-    load sha1_payload : ($ - header_sha1) from __global : header_sha1
-    sha1_result sha1 sha1_payload
-    store sha1_result : $14 at __global : header_adler32
-
-    load adler32_payload : ($ - header_adler32) from __global : header_adler32
-    adler32_result adler32 adler32_payload
-    store adler32_result : $04 at __global : header_magic_end
+    emit_checksums
 
 end postpone
 
