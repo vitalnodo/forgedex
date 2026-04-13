@@ -569,3 +569,56 @@ end macro
 macro invoke_static? method?*, regs?*&
     __fmt_35c $71, method, regs
 end macro
+
+struc defstring? _data?*&
+    local utf16len?, i?, b?, b1?, b2?, b3?, cp?, hi?, lo?
+    utf16len? = 0
+    i? = 0
+    while i < lengthof _data
+        b? = (_data shr (i * 8)) and $FF
+        if b < $80
+            utf16len? = utf16len? + 1
+            i? = i + 1
+        else if b < $E0
+            utf16len? = utf16len? + 1
+            i? = i + 2
+        else if b < $F0
+            utf16len? = utf16len? + 1
+            i? = i + 3
+        else
+            utf16len? = utf16len? + 2
+            i? = i + 4
+        end if
+    end while
+    label .
+    .utf16_size?: leb128 utf16len?
+    ; emit MUTF-8 data: convert 4-byte UTF-8 to surrogate pairs
+    i? = 0
+    while i < lengthof _data
+        b? = (_data shr (i * 8)) and $FF
+        if b < $F0
+            db b
+            i? = i + 1
+        else
+            ; decode 4-byte UTF-8 to codepoint
+            b1? = (_data shr ((i + 1) * 8)) and $FF
+            b2? = (_data shr ((i + 2) * 8)) and $FF
+            b3? = (_data shr ((i + 3) * 8)) and $FF
+            cp? = ((b and $07) shl 18) or ((b1 and $3F) shl 12) or ((b2 and $3F) shl 6) or (b3 and $3F)
+            ; encode as CESU-8 surrogate pair
+            hi? = $D800 or ((cp - $10000) shr 10)
+            lo? = $DC00 or ((cp - $10000) and $3FF)
+            ; high surrogate as 3-byte CESU-8
+            db $E0 or (hi shr 12)
+            db $80 or ((hi shr 6) and $3F)
+            db $80 or (hi and $3F)
+            ; low surrogate as 3-byte CESU-8
+            db $E0 or (lo shr 12)
+            db $80 or ((lo shr 6) and $3F)
+            db $80 or (lo and $3F)
+            i? = i + 4
+        end if
+    end while
+    db $00
+end struc
+

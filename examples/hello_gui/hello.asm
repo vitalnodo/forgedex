@@ -96,21 +96,21 @@ __global::
 
     data:
         data_strings:
-            _init_data           string_data_item $06, "<init>"
-            _hello_world_data    string_data_item $0D, "Hello, World!"
-            _activity_data       string_data_item $16, "Landroid/app/Activity;"
-            _context_data        string_data_item $19, "Landroid/content/Context;"
-            _bundle_data         string_data_item $13, "Landroid/os/Bundle;"
-            _view_data           string_data_item $13, "Landroid/view/View;"
-            _textview_data       string_data_item $19, "Landroid/widget/TextView;"
-            _class_hello_data    string_data_item $16, "Lapp/hello/HelloWorld;"
-            _charsequence_data   string_data_item $18, "Ljava/lang/CharSequence;"
-            _object_data         string_data_item $12, "Ljava/lang/Object;"
-            _void_data           string_data_item $01, "V"
-            _shorty_vl_data      string_data_item $02, "VL"
-            _oncreate_data       string_data_item $08, "onCreate"
-            _setcontentview_data string_data_item $0E, "setContentView"
-            _settext_data        string_data_item $07, "setText"
+            _init_data           defstring "<init>"
+            _hello_world_data    defstring "Hello, World!"
+            _activity_data       defstring "Landroid/app/Activity;"
+            _context_data        defstring "Landroid/content/Context;"
+            _bundle_data         defstring "Landroid/os/Bundle;"
+            _view_data           defstring "Landroid/view/View;"
+            _textview_data       defstring "Landroid/widget/TextView;"
+            _class_hello_data    defstring "Lapp/hello/HelloWorld;"
+            _charsequence_data   defstring "Ljava/lang/CharSequence;"
+            _object_data         defstring "Ljava/lang/Object;"
+            _void_data           defstring "V"
+            _shorty_vl_data      defstring "VL"
+            _oncreate_data       defstring "onCreate"
+            _setcontentview_data defstring "setContentView"
+            _settext_data        defstring "setText"
 
         align $04
 
