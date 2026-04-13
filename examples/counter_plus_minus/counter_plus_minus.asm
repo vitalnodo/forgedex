@@ -152,6 +152,7 @@ __global::
 
         align $04
 
+        data_code:
         ; <init>()V: registers=1, ins=1(v0=this), outs=1, 4 code units
         _hw_init_code    code_item $01, $01, $01, $00, $00, $04, _init_insns
 
@@ -167,23 +168,7 @@ __global::
 
         align $04
 
-        data_map:
-            _map map_list $0C, <\
-                <TYPE_HEADER_ITEM,      $01,             header>,\
-                <TYPE_STRING_ID_ITEM,   string_ids_size, string_ids>,\
-                <TYPE_TYPE_ID_ITEM,     type_ids_size,   type_ids>,\
-                <TYPE_PROTO_ID_ITEM,    proto_ids_size,  proto_ids>,\
-                <TYPE_FIELD_ID_ITEM,    field_ids_size,  field_ids>,\
-                <TYPE_METHOD_ID_ITEM,   method_ids_size, method_ids>,\
-                <TYPE_CLASS_DEF_ITEM,   class_defs_size, class_defs>,\
-                <TYPE_STRING_DATA_ITEM, $22,             data_strings>,\
-                <TYPE_TYPE_LIST,        $06,             data_type_lists>,\
-                <TYPE_CLASS_DATA_ITEM,  $01,             data_class_data>,\
-                <TYPE_CODE_ITEM,        $03,             _hw_init_code>,\
-                <TYPE_MAP_LIST,         $01,             data_map>\
-            >
-
-        align $04
+        dex_map_list
 
     dex_footer
 

@@ -41,7 +41,6 @@ __global::
         deftype _V
 
     ; ── proto_ids ─────────────────────────────────────────
-    ; All return void (type[8]), sorted by param type_idx: none < 1 < 2 < 3 < 6
     proto_ids:
         _void_v_proto     proto_id_item _V_string,         _V_type, $00             ; [0] ()V
         _context_v_proto  proto_id_item _shorty_vl_string, _V_type, _context_v_tl   ; [1] (Context)V
@@ -50,7 +49,6 @@ __global::
         _charseq_v_proto  proto_id_item _shorty_vl_string, _V_type, _charseq_v_tl   ; [4] (CharSequence)V
 
     ; ── method_ids ────────────────────────────────────────
-    ; Sorted by (class_idx, proto_idx, name_idx)
     method_ids:
         _activity_init_method     method_id_item _activity_type, _void_v_proto,    _init_string           ; [0]
         _activity_oncreate_method method_id_item _activity_type, _bundle_v_proto,  _oncreate_string       ; [1]
@@ -79,7 +77,6 @@ __global::
 
         align $04
 
-        ; static=0, instance=0, direct=1(<init>), virtual=1(onCreate)
         data_class_data:
             _hello_class_data class_data_item $00, $00, $01, $01, \
                 <>, <>, \
@@ -88,34 +85,16 @@ __global::
 
         align $04
 
-        ; <init>()V: registers=1, ins=1(v0=this), outs=1, 4 code units
-        data_init_code:
+        data_code:
             _hello_init_code code_item $01, $01, $01, $00, $00, $04, _hello_init_insns
 
         align $04
 
-        ; onCreate(Bundle)V: registers=4, ins=2(v2=this, v3=bundle), outs=2, 17 code units
-        data_oncreate_code:
             _hello_oncreate_code code_item $04, $02, $02, $00, $00, $11, _hello_oncreate_insns
 
         align $04
 
-        data_map:
-            _map map_list $0B, <\
-                <TYPE_HEADER_ITEM,      $01,             header>,\
-                <TYPE_STRING_ID_ITEM,   string_ids_size, string_ids>,\
-                <TYPE_TYPE_ID_ITEM,     type_ids_size,   type_ids>,\
-                <TYPE_PROTO_ID_ITEM,    proto_ids_size,  proto_ids>,\
-                <TYPE_METHOD_ID_ITEM,   method_ids_size, method_ids>,\
-                <TYPE_CLASS_DEF_ITEM,   class_defs_size, class_defs>,\
-                <TYPE_STRING_DATA_ITEM, $0F,             data_strings>,\
-                <TYPE_TYPE_LIST,        $04,             data_type_lists>,\
-                <TYPE_CLASS_DATA_ITEM,  $01,             data_class_data>,\
-                <TYPE_CODE_ITEM,        $02,             data_init_code>,\
-                <TYPE_MAP_LIST,         $01,             data_map>\
-            >
-
-        align $04
+        dex_map_list
 
     dex_footer
 
