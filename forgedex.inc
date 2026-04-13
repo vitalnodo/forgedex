@@ -638,3 +638,67 @@ macro emit_checksums?
     __adler32_result adler32 __adler32_payload
     store __adler32_result : $04 at __global : header_magic_end
 end macro
+
+; ── DEX file scaffolding ─────────────────────────────────
+;
+;  Usage inside postpone block:
+;
+;      postpone
+;      __global::
+;          dex_header
+;
+;          string_ids:
+;              ...
+;          type_ids:
+;              ...
+;          ...
+;          data:
+;              ...
+;
+;          dex_footer
+;      end postpone
+;
+;  field_ids is optional: if the label is not defined,
+;  the header emits zeroes for field_ids_size / field_ids_off.
+
+macro dex_header?
+    header:
+        ubyte DEX_FILE_MAGIC
+    header_magic_end:
+        uint $00
+    header_adler32:
+        emit $14 : $00
+    header_sha1:
+        uint (header_end - header)          ; file_size
+        uint (string_ids - header)          ; header_size
+        uint ENDIAN_CONSTANT
+        uint $00                            ; link_size
+        uint $00                            ; link_off
+        uint _map                           ; map_off
+        uint string_ids_size
+        uint (string_ids  - header)
+        uint type_ids_size
+        uint (type_ids    - header)
+        uint proto_ids_size
+        uint (proto_ids   - header)
+        if defined field_ids
+            uint field_ids_size
+            uint (field_ids - header)
+        else
+            uint $00
+            uint $00
+        end if
+        uint method_ids_size
+        uint (method_ids  - header)
+        uint class_defs_size
+        uint (class_defs  - header)
+        uint (link_data   - data)           ; data_size
+        uint (data        - header)         ; data_off
+end macro
+
+macro dex_footer?
+    link_data:
+    header_end:
+
+    emit_checksums
+end macro

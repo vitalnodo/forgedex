@@ -10,33 +10,7 @@ include '../../forgedex.inc'
 postpone
 __global::
 
-    header:
-        ubyte DEX_FILE_MAGIC
-    header_magic_end:
-        uint $00
-    header_adler32:
-        emit $14 : $00
-    header_sha1:
-        uint (header_end - header)          ; file_size
-        uint (string_ids - header)          ; header_size
-        uint ENDIAN_CONSTANT
-        uint $00                            ; link_size
-        uint $00                            ; link_off
-        uint _map                           ; map_off
-        uint string_ids_size
-        uint (string_ids  - header)
-        uint type_ids_size
-        uint (type_ids    - header)
-        uint proto_ids_size
-        uint (proto_ids   - header)
-        uint field_ids_size
-        uint (field_ids   - header)
-        uint method_ids_size
-        uint (method_ids  - header)
-        uint class_defs_size
-        uint (class_defs  - header)
-        uint (link_data   - data)           ; data_size
-        uint (data        - header)         ; data_off
+    dex_header
 
     ; ── string_ids ────────────────────────────────────────
     ; Sorted by MUTF-8 unsigned byte order
@@ -244,10 +218,7 @@ __global::
 
         align $04
 
-    link_data:
-    header_end:
-
-    emit_checksums
+    dex_footer
 
 end postpone
 
