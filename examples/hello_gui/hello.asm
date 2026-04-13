@@ -87,20 +87,14 @@ __global::
 
         ; ── <init>()V ─────────────────────────────────────
         ; v0 = this (p0)
-        virtual at $00
-        _hello_init_insns::
+        dex_method _hello_init_code, $01, $01, $01
             invoke_direct  _activity_init_method, v0
             return_void
-        end virtual
-
-        _hello_init_code code_item $01, $01, $01, $00, $00, $04, _hello_init_insns
-
-        align $04
-
+        end dex_method
+        
         ; ── onCreate(Bundle)V ─────────────────────────────
         ; registers=4, ins=2: v2=this(p0), v3=bundle(p1)
-        virtual at $00
-        _hello_oncreate_insns::
+        dex_method _hello_oncreate_code, $04, $02, $02
             invoke_super   _activity_oncreate_method, v2, v3
             new_instance   v0, _textview_type
             invoke_direct  _textview_init_method, v0, v2
@@ -108,11 +102,7 @@ __global::
             invoke_virtual _textview_settext_method, v0, v1
             invoke_virtual _activity_setcv_method, v2, v0
             return_void
-        end virtual
-
-        _hello_oncreate_code code_item $04, $02, $02, $00, $00, $11, _hello_oncreate_insns
-
-        align $04
+        end dex_method
 
         dex_map_list
 

@@ -155,24 +155,17 @@ __global::
         data_code:
         ; ── <init>()V ─────────────────────────────────────────────
         ; v0=this(p0)
-        virtual at $00
-        _init_insns::
+        dex_method _hw_init_code, $01, $01, $01
             invoke_direct  _act_init_m, v0                      ; Activity.<init>
             return_void
-        end virtual
-
-        ; <init>()V: registers=1, ins=1(v0=this), outs=1, 4 code units
-        _hw_init_code    code_item $01, $01, $01, $00, $00, $04, _init_insns
-
-        align $04
+        end dex_method
 
         ; ── onClick(View)V ────────────────────────────────────────
         ; registers=6, ins=2: v4=this(p0), v5=view(p1)
         ; v0=count/str, v1=btn_plus ref, v2=tv ref
         ;
         ; if view == btn_plus → increment, else decrement (skip if already 0)
-        virtual at $00
-        _onclick_insns::
+        dex_method _hw_onclick_code, $06, $02, $02
             iget_object    v1, v4, _f_btn_plus                  ; btn_plus
             if_eq          v5, v1, $0009                        ; if view == btn_plus → :plus
             iget           v0, v4, _f_count                     ; minus: count
@@ -187,18 +180,12 @@ __global::
             move_result_object v0                               ; result
             invoke_virtual _tv_settt_m, v2, v0                  ; setText
             return_void
-        end virtual
-
-        ; onClick(View)V: registers=6, ins=2(v4=this, v5=view), outs=2, 27 code units
-        _hw_onclick_code code_item $06, $02, $02, $00, $00, $1B, _onclick_insns
-
-        align $04
+        end dex_method
 
         ; ── onCreate(Bundle)V ─────────────────────────────────────
         ; registers=7, ins=2: v5=this(p0), v6=bundle(p1)
         ; v0=LinearLayout, v1=TextView, v2=Button(+), v3=Button(-), v4=temp
-        virtual at $00
-        _oncreate_insns::
+        dex_method _hw_oncreate_code, $07, $02, $02
             invoke_super   _act_oncr_m, v5, v6                  ; Activity.onCreate
             new_instance   v0, _ll_type                         ; new LinearLayout
             invoke_direct  _ll_init_m, v0, v5                   ; LinearLayout.<init>
@@ -206,18 +193,18 @@ __global::
             invoke_virtual _ll_setor_m, v0, v4                  ; setOrientation
             new_instance   v1, _textview_type                   ; new TextView
             invoke_direct  _tv_init_m, v1, v5                   ; TextView.<init>
-            const_string   v4, _s0_string                          ; "0"
+            const_string   v4, _s0_string                       ; "0"
             invoke_virtual _tv_settt_m, v1, v4                  ; setText
             iput_object    v1, v5, _f_tv                        ; this.tv = tv
             new_instance   v2, _button_type                     ; new Button
             invoke_direct  _btn_init_m, v2, v5                  ; Button.<init>
-            const_string   v4, _plus_string                        ; "+"
+            const_string   v4, _plus_string                     ; "+"
             invoke_virtual _btn_settt_m, v2, v4                 ; setText
             invoke_virtual _btn_setocl_m, v2, v5                ; setOnClickListener
             iput_object    v2, v5, _f_btn_plus                  ; this.btn_plus = btn
             new_instance   v3, _button_type                     ; new Button
             invoke_direct  _btn_init_m, v3, v5                  ; Button.<init>
-            const_string   v4, _minus_string                       ; "-"
+            const_string   v4, _minus_string                    ; "-"
             invoke_virtual _btn_settt_m, v3, v4                 ; setText
             invoke_virtual _btn_setocl_m, v3, v5                ; setOnClickListener
             iput_object    v3, v5, _f_btn_minus                 ; this.btn_minus = btn
@@ -226,12 +213,7 @@ __global::
             invoke_virtual _ll_addview_m, v0, v2                ; addView(btn_plus)
             invoke_virtual _act_setcv_m, v5, v0                 ; setContentView
             return_void
-        end virtual
-
-        ; onCreate(Bundle)V: registers=7, ins=2(v5=this, v6=bundle), outs=2, 67 code units
-        _hw_oncreate_code code_item $07, $02, $02, $00, $00, $43, _oncreate_insns
-
-        align $04
+        end dex_method
 
         dex_map_list
 

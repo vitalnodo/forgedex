@@ -855,3 +855,29 @@ macro dex_map_list?
 
     align $04
 end macro
+
+; ── Method code helper ───────────────────────────────────
+;
+;  Usage:
+;      dex_method _hello_init_code, $01, $01, $01
+;          invoke_direct _act_init_m, v0
+;          return_void
+;      end dex_method
+
+macro dex_method? _name?*, _registers_size?*, _ins_size?*, _outs_size?*
+    __dex_method_name equ _name
+    __dex_method_regs = _registers_size
+    __dex_method_ins = _ins_size
+    __dex_method_outs = _outs_size
+    virtual at $00
+    _name#_insns::
+end macro
+
+macro end?.dex_method?
+    end virtual
+    match name, __dex_method_name
+        name code_item __dex_method_regs, __dex_method_ins, __dex_method_outs, $00, $00, $FFFF, name#_insns
+    end match
+    restore __dex_method_name
+    align $04
+end macro

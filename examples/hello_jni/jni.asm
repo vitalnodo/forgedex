@@ -130,24 +130,17 @@ __global::
         data_code:
         ; ── <init>()V ─────────────────────────────────────────────
         ; v0 = this (p0)
-        virtual at $00
-        _init_insns::
+        dex_method _hw_init_code, $01, $01, $01
             invoke_direct  _act_init_m, v0                      ; Activity.<init>
             return_void
-        end virtual
-
-        ; <init>()V: registers=1, ins=1(v0=this), outs=1, 4 code units
-        _hw_init_code code_item $01, $01, $01, $00, $00, $04, _init_insns
-
-        align $04
+        end dex_method
 
         ; ── onCreate(Bundle)V ─────────────────────────────────────
         ; registers=4, ins=2: v2=this(p0), v3=bundle(p1)
         ; v0=temp/result, v1=TextView
-        virtual at $00
-        _oncreate_insns::
+        dex_method _hw_oncreate_code, $04, $02, $02
             invoke_super   _act_oncr_m, v2, v3                  ; Activity.onCreate
-            const_string   v0, _hello_lib_string                   ; "hello"
+            const_string   v0, _hello_lib_string                ; "hello"
             invoke_static  _sys_loadlib_m, v0                   ; System.loadLibrary
             new_instance   v1, _textview_type                   ; new TextView
             invoke_direct  _tv_init_m, v1, v2                   ; TextView.<init>
@@ -156,12 +149,7 @@ __global::
             invoke_virtual _tv_settt_m, v1, v0                  ; setText
             invoke_virtual _act_setcv_m, v2, v1                 ; setContentView
             return_void
-        end virtual
-
-        ; onCreate(Bundle)V: registers=4, ins=2(v2=this, v3=bundle), outs=2, 24 code units
-        _hw_oncreate_code code_item $04, $02, $02, $00, $00, $18, _oncreate_insns
-
-        align $04
+        end dex_method
 
         dex_map_list
 

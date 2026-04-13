@@ -154,43 +154,30 @@ __global::
         data_code:
         ; ── <init>()V ─────────────────────────────────────────────
         ; v0 = this (p0)
-        virtual at $00
-        _init_insns::
+        dex_method _hw_init_code, $01, $01, $01
             invoke_direct  _act_init_m, v0                      ; Activity.<init>
             return_void
-        end virtual
-
-        ; <init>()V: registers=1, ins=1(v0=this), outs=1, 4 code units
-        _hw_init_code    code_item $01, $01, $01, $00, $00, $04, _init_insns
-
-        align $04
+        end dex_method
 
         ; ── onCreate(Bundle)V ─────────────────────────────────────
         ; registers=4, ins=2: v2=this(p0), v3=bundle(p1)
         ; v0=Button, v1="0"
-        virtual at $00
-        _oncreate_insns::
+        dex_method _hw_oncreate_code, $04, $02, $02
             invoke_super   _act_oncr_m, v2, v3                  ; Activity.onCreate
             new_instance   v0, _button_type                     ; new Button
             invoke_direct  _btn_init_m, v0, v2                  ; Button.<init>
-            const_string   v1, _s0_string                          ; "0"
+            const_string   v1, _s0_string                       ; "0"
             invoke_virtual _btn_settt_m, v0, v1                 ; setText
             invoke_virtual _btn_setocl_m, v0, v2                ; setOnClickListener
             iput_object    v0, v2, _btn_field                   ; this.btn = btn
             invoke_virtual _act_setcv_m, v2, v0                 ; setContentView
             return_void
-        end virtual
-
-        ; onCreate(Bundle)V: registers=4, ins=2(v2=this, v3=bundle), outs=2, 22 code units
-        _hw_oncreate_code code_item $04, $02, $02, $00, $00, $16, _oncreate_insns
-
-        align $04
+        end dex_method
 
         ; ── onClick(View)V ────────────────────────────────────────
         ; registers=4, ins=2: v2=this(p0), v3=view(p1)
         ; v0=count(int)/result(String), v1=btn(Button)
-        virtual at $00
-        _onclick_insns::
+        dex_method _hw_onclick_code, $04, $02, $02
             iget           v0, v2, _count_field                 ; count
             add_int_lit8   v0, v0, 1                            ; count++
             iput           v0, v2, _count_field                 ; this.count = count
@@ -199,12 +186,7 @@ __global::
             move_result_object v0                               ; result
             invoke_virtual _btn_settt_m, v1, v0                 ; setText
             return_void
-        end virtual
-
-        ; onClick(View)V: registers=4, ins=2(v2=this, v3=view), outs=2, 16 code units
-        _hw_onclick_code  code_item $04, $02, $02, $00, $00, $10, _onclick_insns
-
-        align $04
+        end dex_method
 
         dex_map_list
 
