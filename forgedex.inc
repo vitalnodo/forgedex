@@ -267,6 +267,15 @@ struc proto_id_item? _shorty_idx?*, _return_type_idx?*, _parameters_off?*
     .parameters_off?:  uint _parameters_off
 end struc
 
+; Convenience wrapper over proto_id_item: the shorty name and the
+; return type are given as defstr/deftype bases, so the _string and
+; _type suffixes don't have to be repeated at every call site.
+; The parameters offset is passed through unchanged — $00 for a
+; no-arg method, or a type_list label otherwise.
+struc proto? _shorty?*, _return?*, _parameters_off?*
+    . proto_id_item _shorty#_string, _return#_type, _parameters_off
+end struc
+
 __define_index __field_id_item?
 
 struc field_id_item? _class_idx?*, _type_idx?*, _name_idx?*
@@ -287,6 +296,37 @@ struc method_id_item? _class_idx?*, _proto_idx?*, _name_idx?*
     .name_idx?:  uint   _name_idx
 end struc
 
+; Convenience wrappers: same as method_id_item / field_id_item but
+; the name is given as the defstr base (e.g. _init) rather than
+; the generated string label (_init_string). Saves a '_string'
+; suffix at every call site.
+;
+; Both also assert that the entries are added in the sorted order
+; DEX requires: method_ids by (class_idx, proto_idx, name_idx), and
+; field_ids by (class_idx, type_idx, name_idx). The sort key is
+; packed into a single 64-bit int so a plain '>' comparison works
+; lexicographically: type/class idx in bits [48..63], second field
+; in [32..47], name idx in [0..31]. All indices fit (16-bit for
+; type/class/proto, 32-bit for name).
+__method_id_prev_key? = -1
+__field_id_prev_key?  = -1
+
+struc method_id? _class_idx?*, _proto_idx?*, _name?*
+    local key?
+    key? = (_class_idx shl $30) or (_proto_idx shl $20) or _name#_string
+    assert key? > __method_id_prev_key?      ; method_ids must be strictly sorted
+    __method_id_prev_key? = key?
+    . method_id_item _class_idx, _proto_idx, _name#_string
+end struc
+
+struc field_id? _class_idx?*, _type_idx?*, _name?*
+    local key?
+    key? = (_class_idx shl $30) or (_type_idx shl $20) or _name#_string
+    assert key? > __field_id_prev_key?       ; field_ids must be strictly sorted
+    __field_id_prev_key? = key?
+    . field_id_item _class_idx, _type_idx, _name#_string
+end struc
+
 __define_index __class_def_item?
 
 struc class_def_item?           _class_idx?*, _access_flags?*, _superclass_idx?*, _interfaces_off?*,\
@@ -303,38 +343,36 @@ struc class_def_item?           _class_idx?*, _access_flags?*, _superclass_idx?*
     .static_values_off?: uint _static_values_off
 end struc
 
+; Common-case wrapper: a plain public class with no source file,
+; no annotations, and no static-initializer values. Covers every
+; example in this repo and most hand-written Android activities.
+;   public_class _class_type, _super_type, _interfaces, _class_data
+; Pass $00 for _interfaces if the class implements no interfaces.
+struc public_class? _class_idx?*, _superclass_idx?*, _interfaces_off?*, _class_data_off?*
+    . class_def_item _class_idx, ACC_PUBLIC, _superclass_idx, _interfaces_off,\
+                     NO_INDEX, $00, _class_data_off, $00
+end struc
+
 struc type_item? _type_idx?*
     .type_idx?: ushort _type_idx
 end struc
 
 __type_list_count? = 0
 
-struc type_list? _size?*, _list?*
+struc type_list? _bases?*
+    local n?
     __type_list_count? = __type_list_count? + 1
+    n? = 0
+    iterate base?, _bases
+        n? = n? + 1
+    end iterate
     align $04
     label .
-    .size?: uint _size
+    .size?: uint n?
     .list?:
-    iterate item?, _list
-        .list?.% type_item item
+    iterate base?, _bases
+        .list?.% type_item base#_type
     end iterate
-end struc
-
-struc map_list? _size?*, _list?
-    align $04
-    label .
-    .size?: uint _size
-    .list?:
-    iterate item?, _list
-        .list?.% map_item item
-    end iterate
-end struc
-
-struc map_item? _type?*, _size?*, _offset?*
-    .type?:   ushort _type
-    ushort $00
-    .size?:   uint _size
-    .offset?: uint _offset
 end struc
 
 struc string_data_item? _utf16_size?*, _data?&
@@ -343,28 +381,96 @@ struc string_data_item? _utf16_size?*, _data?&
     .data?: ubyte _data, $00
 end struc
 
-struc class_data_item?          _static_fields_size?*, _instance_fields_size?*, _direct_methods_size?*, _virtual_methods_size?*,\
-                                _static_fields?, _instance_fields?, _direct_methods?, _virtual_methods?
+struc class_data_item?  _static_fields?, _instance_fields?, _direct_methods?, _virtual_methods?
+    local n_static?, n_instance?, n_direct?, n_virtual?
+    local prev?, i?, _id?, _flags?, _code?
+    n_static?   = 0
+    n_instance? = 0
+    n_direct?   = 0
+    n_virtual?  = 0
+    iterate item?, _static_fields
+        n_static? = n_static? + 1
+    end iterate
+    iterate item?, _instance_fields
+        n_instance? = n_instance? + 1
+    end iterate
+    iterate item?, _direct_methods
+        n_direct? = n_direct? + 1
+    end iterate
+    iterate item?, _virtual_methods
+        n_virtual? = n_virtual? + 1
+    end iterate
     label .
-    .static_fields_size?:   leb128 _static_fields_size
-    .instance_fields_size?: leb128 _instance_fields_size
-    .direct_methods_size?:  leb128 _direct_methods_size
-    .virtual_methods_size?: leb128 _virtual_methods_size
+    .static_fields_size?:   leb128 n_static?
+    .instance_fields_size?: leb128 n_instance?
+    .direct_methods_size?:  leb128 n_direct?
+    .virtual_methods_size?: leb128 n_virtual?
+    ; Each encoded_field / encoded_method stores a delta against the
+    ; previous entry's absolute id (reset per list). Users pass absolute
+    ; method_id / field_id labels throughout; the delta is computed here.
     .static_fields?:
-    iterate static_field?, _static_fields
-        .static_fields?.% encoded_field static_field
+    prev? = 0
+    iterate field?, _static_fields
+        i? = 0
+        iterate x?, field
+            if i? = 0
+                _id? = x
+            else if i? = 1
+                _flags? = x
+            end if
+            i? = i? + 1
+        end iterate
+        .static_fields?.% encoded_field (_id? - prev?), _flags?
+        prev? = _id?
     end iterate
     .instance_fields?:
-    iterate instance_field?, _instance_fields
-        .instance_fields?.% encoded_field instance_field
+    prev? = 0
+    iterate field?, _instance_fields
+        i? = 0
+        iterate x?, field
+            if i? = 0
+                _id? = x
+            else if i? = 1
+                _flags? = x
+            end if
+            i? = i? + 1
+        end iterate
+        .instance_fields?.% encoded_field (_id? - prev?), _flags?
+        prev? = _id?
     end iterate
     .direct_methods?:
-    iterate direct_method?, _direct_methods
-        .direct_methods?.% encoded_method direct_method
+    prev? = 0
+    iterate method?, _direct_methods
+        i? = 0
+        iterate x?, method
+            if i? = 0
+                _id? = x
+            else if i? = 1
+                _flags? = x
+            else if i? = 2
+                _code? = x
+            end if
+            i? = i? + 1
+        end iterate
+        .direct_methods?.% encoded_method (_id? - prev?), _flags?, _code?
+        prev? = _id?
     end iterate
     .virtual_methods?:
-    iterate virtual_method?, _virtual_methods
-        .virtual_methods?.% encoded_method virtual_method
+    prev? = 0
+    iterate method?, _virtual_methods
+        i? = 0
+        iterate x?, method
+            if i? = 0
+                _id? = x
+            else if i? = 1
+                _flags? = x
+            else if i? = 2
+                _code? = x
+            end if
+            i? = i? + 1
+        end iterate
+        .virtual_methods?.% encoded_method (_id? - prev?), _flags?, _code?
+        prev? = _id?
     end iterate
 end struc
 
@@ -436,45 +542,85 @@ v14 = 14
 v15 = 15
  
 ; ── Dalvik instruction formats ────────────────────────────
- 
+;
+;  Each __fmt_XX macro encodes one Dalvik instruction format.
+;  Range assertions catch the common mistakes early (wrong register
+;  width, out-of-range literal, out-of-range branch offset) — fasmg
+;  will fail with a clear error at the offending line instead of
+;  silently producing a DEX that Android's verifier rejects.
+;
+;  Register naming: 4-bit register fields hold v0..v15 only; 8-bit
+;  fields hold v0..v255. 16-bit fields (not used by these formats)
+;  would hold v0..v65535.
+
 macro __fmt_10x? op?*
     dw op
 end macro
- 
-macro __fmt_10t? op?*, offset?*
+
+macro __fmt_10t? op?*, target?*
+    local here, offset
+    here = $
+    offset = (target - here) / 2
+    assert (offset >= -$80) & (offset <= $7F)       ; signed 8-bit branch
+    assert ((target - here) mod 2) = 0              ; codeunit-aligned
     dw ((offset and $FF) shl 8) or op
 end macro
- 
+
 macro __fmt_11x? op?*, a?*
+    assert (a >= $00) & (a <= $FF)                  ; 8-bit register
     dw (a shl 8) or op
 end macro
- 
+
 macro __fmt_11n? op?*, a?*, lit?*
+    assert (a >= $00) & (a <= $0F)                  ; 4-bit register (v0..v15)
+    assert (lit >= -$08) & (lit <= $07)             ; signed 4-bit literal
     dw ((lit and $0F) shl 12) or (a shl 8) or op
 end macro
- 
+
 macro __fmt_21c? op?*, a?*, idx?*
+    assert (a >= $00) & (a <= $FF)                  ; 8-bit register
+    assert (idx >= $00) & (idx <= $FFFF)            ; 16-bit pool index
     dw (a shl 8) or op, idx
 end macro
- 
-macro __fmt_21t? op?*, a?*, offset?*
+
+macro __fmt_21t? op?*, a?*, target?*
+    local here, offset
+    here = $
+    offset = (target - here) / 2
+    assert (a >= $00) & (a <= $FF)                  ; 8-bit register
+    assert (offset >= -$8000) & (offset <= $7FFF)   ; signed 16-bit branch
+    assert ((target - here) mod 2) = 0              ; codeunit-aligned
     dw (a shl 8) or op, offset
 end macro
- 
+
 macro __fmt_22c? op?*, a?*, b?*, idx?*
+    assert (a >= $00) & (a <= $0F)                  ; 4-bit register
+    assert (b >= $00) & (b <= $0F)                  ; 4-bit register
+    assert (idx >= $00) & (idx <= $FFFF)            ; 16-bit pool index
     dw (b shl 12) or (a shl 8) or op, idx
 end macro
- 
-macro __fmt_22t? op?*, a?*, b?*, offset?*
+
+macro __fmt_22t? op?*, a?*, b?*, target?*
+    local here, offset
+    here = $
+    offset = (target - here) / 2
+    assert (a >= $00) & (a <= $0F)                  ; 4-bit register
+    assert (b >= $00) & (b <= $0F)                  ; 4-bit register
+    assert (offset >= -$8000) & (offset <= $7FFF)   ; signed 16-bit branch
+    assert ((target - here) mod 2) = 0              ; codeunit-aligned
     dw (b shl 12) or (a shl 8) or op, offset
 end macro
- 
+
 macro __fmt_22b? op?*, a?*, b?*, lit?*
+    assert (a >= $00) & (a <= $FF)                  ; 8-bit register
+    assert (b >= $00) & (b <= $FF)                  ; 8-bit register
+    assert (lit >= -$80) & (lit <= $7F)             ; signed 8-bit literal
     dw (a shl 8) or op, ((lit and $FF) shl 8) or b
 end macro
- 
+
 macro __fmt_35c? op?*, idx?*, regs?*&
     local count?, c?, d?, e?, f?, g?
+    assert (idx >= $00) & (idx <= $FFFF)            ; 16-bit pool index
     c? = 0
     d? = 0
     e? = 0
@@ -482,6 +628,7 @@ macro __fmt_35c? op?*, idx?*, regs?*&
     g? = 0
     count? = 0
     iterate reg?, regs
+        assert (reg >= $00) & (reg <= $0F)          ; each register is 4-bit
         count? = count? + 1
         match =1, %
             c? = reg
@@ -499,6 +646,7 @@ macro __fmt_35c? op?*, idx?*, regs?*&
             g? = reg
         end match
     end iterate
+    assert count <= 5                               ; 35c: up to 5 registers
     dw (count? shl 12) or (g? shl 8) or op, idx, (f? shl 12) or (e? shl 8) or (d? shl 4) or c?
 end macro
  
@@ -516,8 +664,8 @@ macro const_4? a?*, lit?*
     __fmt_11n $12, a, lit
 end macro
  
-macro goto? offset?*
-    __fmt_10t $28, offset
+macro goto? target?*
+    __fmt_10t $28, target
 end macro
  
 macro const_string? a?*, idx?*
@@ -532,8 +680,8 @@ macro sget_object? a?*, idx?*
     __fmt_21c $62, a, idx
 end macro
  
-macro if_eqz? a?*, offset?*
-    __fmt_21t $38, a, offset
+macro if_eqz? a?*, target?*
+    __fmt_21t $38, a, target
 end macro
  
 macro iget? a?*, b?*, idx?*
@@ -552,8 +700,8 @@ macro iput_object? a?*, b?*, idx?*
     __fmt_22c $5B, a, b, idx
 end macro
  
-macro if_eq? a?*, b?*, offset?*
-    __fmt_22t $32, a, b, offset
+macro if_eq? a?*, b?*, target?*
+    __fmt_22t $32, a, b, target
 end macro
  
 macro add_int_lit8? a?*, b?*, lit?*
@@ -715,22 +863,46 @@ end macro
 ;
 ;  Usage:
 ;      macro _strings
-;          defstr _init,  "<init>"
-;          defstr _void,  "V"
+;          defstr     _init,     "<init>"
+;          defstrtype _activity, "Landroid/app/Activity;"   ; marked as a type
+;          defstrtype _V,        "V"
 ;      end macro
 ;
-;      string_ids:
-;          emit_string_ids _strings
-;      data:
-;          emit_string_data _strings
+;      string_ids: emit_string_ids _strings
+;      type_ids:   emit_type_ids   _strings
+;      data_strings:
+;                  emit_string_data _strings
+;
+;  defstrtype is defstr + a mark; emit_type_ids replays the callback
+;  and emits a type_id_item only for marked strings, in declaration
+;  order. Because DEX requires type_ids sorted by descriptor_idx
+;  (= index into the already-sorted string pool), users must keep
+;  defstrtype entries in the same relative order as the underlying
+;  strings — which is already the natural thing to do, and matches
+;  the previous manual 'deftype' listing order.
 
 __defstr_mode = 0
+; __defstr_mode values:
+;   0 — emit string_id_item
+;   1 — emit string_data (UTF-8 / MUTF-8 bytes with leb128 length)
+;   2 — emit type_id_item for marked strings (others ignored)
 
 macro defstr? base?*, text?*&
     if __defstr_mode = 0
         base#_string string_id_item base#_data
-    else
+    else if __defstr_mode = 1
         base#_data defstring text
+    end if
+    ; mode 2: plain defstr contributes nothing to type_ids
+end macro
+
+macro defstrtype? base?*, text?*&
+    if __defstr_mode = 0
+        base#_string string_id_item base#_data
+    else if __defstr_mode = 1
+        base#_data defstring text
+    else if __defstr_mode = 2
+        base#_type type_id_item base#_string
     end if
 end macro
 
@@ -744,7 +916,50 @@ macro emit_string_data? callback?*
     callback
 end macro
 
+macro emit_type_ids? callback?*
+    __defstr_mode = 2
+    callback
+end macro
+
+; ── Data section labels ───────────────────────────────────
+;
+;  The data section needs specific labels (data_strings,
+;  data_type_lists, data_class_data, data_code, data_map) so that
+;  dex_map_list and dex_header can reference them. Each of these
+;  macros emits that label at a 4-byte-aligned offset, which is
+;  what the DEX layout requires.
+;
+;  Note: data_code is deliberately NOT aligned here — the code_item
+;  struc aligns itself at the start of its own body, and the label
+;  points at the first code_item, not at padding before it.
+
+macro data_strings? callback?
+    align $04
+    data_strings:
+    match cb, callback
+        emit_string_data cb
+    end match
+end macro
+
+macro data_type_lists?
+    align $04
+    data_type_lists:
+end macro
+
+macro data_class_data?
+    align $04
+    data_class_data:
+end macro
+
+macro data_code?
+    align $04
+    data_code:
+end macro
+
 ; ── Type helper ──────────────────────────────────────────
+;
+;  deftype is kept for backward compatibility with examples that
+;  declare strings via plain defstr and list types manually.
 
 macro deftype? base?*
     base#_type type_id_item base#_string
@@ -768,14 +983,18 @@ end macro
 
 macro dex_map_list?
     local count
-    count = $07
+    ; Baseline always-present entries: HEADER, STRING_ID, TYPE_ID, PROTO_ID,
+    ; METHOD_ID, CLASS_DEF, STRING_DATA, CLASS_DATA = 8.
+    ; Plus: field_ids (optional), type_list (optional), code_item (optional),
+    ; and the map_list entry itself.
+    count = $08
     if defined field_ids
         count = count + $01
     end if
     if __type_list_count > $00
         count = count + $01
     end if
-    if code_item_count > $00
+    if __code_item_count > $00
         count = count + $01
     end if
     count = count + $01
@@ -805,57 +1024,6 @@ macro dex_map_list?
 
     align $04
 end macro
-; ── Automatic map_list ───────────────────────────────────
-;
-;  Usage (replaces manual map_list in data section):
-;
-;      data_code:
-;          _hw_init_code code_item ...
-;          ...
-;
-;      dex_map_list
-;
-;  Requires standard labels: data_strings, data_type_lists,
-;  data_class_data, data_code, data_map.
-;  field_ids, type_list, code_item counts are detected automatically.
-
-macro emit_map_item? _type?*, _size?*, _offset?*
-    ushort _type
-    ushort $00
-    uint _size
-    uint _offset
-end macro
-
-macro dex_map_list?
-    local count
-    if defined field_ids
-        count = $0C
-    else
-        count = $0B
-    end if
-
-    align $04
-    data_map:
-    _map:
-        uint count
-        emit_map_item TYPE_HEADER_ITEM,      $01,              header
-        emit_map_item TYPE_STRING_ID_ITEM,   string_ids_size,  string_ids
-        emit_map_item TYPE_TYPE_ID_ITEM,     type_ids_size,    type_ids
-        emit_map_item TYPE_PROTO_ID_ITEM,    proto_ids_size,   proto_ids
-        if defined field_ids
-            emit_map_item TYPE_FIELD_ID_ITEM, field_ids_size,  field_ids
-        end if
-        emit_map_item TYPE_METHOD_ID_ITEM,   method_ids_size,  method_ids
-        emit_map_item TYPE_CLASS_DEF_ITEM,   class_defs_size,  class_defs
-        emit_map_item TYPE_STRING_DATA_ITEM, string_ids_size,  data_strings
-        emit_map_item TYPE_TYPE_LIST,        __type_list_count, data_type_lists
-        emit_map_item TYPE_CLASS_DATA_ITEM,  class_defs_size,  data_class_data
-        emit_map_item TYPE_CODE_ITEM,        __code_item_count, data_code
-        emit_map_item TYPE_MAP_LIST,         $01,              data_map
-
-    align $04
-end macro
-
 ; ── Method code helper ───────────────────────────────────
 ;
 ;  Usage:
@@ -869,6 +1037,26 @@ macro dex_method? _name?*, _registers_size?*, _ins_size?*, _outs_size?*
     __dex_method_regs = _registers_size
     __dex_method_ins = _ins_size
     __dex_method_outs = _outs_size
+    ; Parameter register aliases. In Dalvik, method parameters live in
+    ; the high registers: pN = v(registers - ins + N). Declaring them
+    ; as '=' (not 'equ') makes the values resolve now, so they stay
+    ; consistent even if someone later reassigns __dex_method_regs.
+    p0  = _registers_size - _ins_size + 0
+    p1  = _registers_size - _ins_size + 1
+    p2  = _registers_size - _ins_size + 2
+    p3  = _registers_size - _ins_size + 3
+    p4  = _registers_size - _ins_size + 4
+    p5  = _registers_size - _ins_size + 5
+    p6  = _registers_size - _ins_size + 6
+    p7  = _registers_size - _ins_size + 7
+    p8  = _registers_size - _ins_size + 8
+    p9  = _registers_size - _ins_size + 9
+    p10 = _registers_size - _ins_size + 10
+    p11 = _registers_size - _ins_size + 11
+    p12 = _registers_size - _ins_size + 12
+    p13 = _registers_size - _ins_size + 13
+    p14 = _registers_size - _ins_size + 14
+    p15 = _registers_size - _ins_size + 15
     virtual at $00
     _name#_insns::
 end macro
