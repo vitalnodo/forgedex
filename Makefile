@@ -1,7 +1,25 @@
 EXAMPLES = hello_gui counter_plus_minus fizzbuzz canvas fetch raycaster \
            hello_jni dtmf nativewin shaders themes
 
-.PHONY: all deps check clean $(EXAMPLES)
+.PHONY: help all deps check clean $(EXAMPLES)
+
+#  Bare `make` says what there is rather than building eleven APKs,
+#  which is not what anyone wants from a repository they just cloned.
+.DEFAULT_GOAL := help
+
+help:
+	@echo 'make deps            build fasmg and apksign into deps/  (run once)'
+	@echo 'make all             every example'
+	@echo 'make <example>       one of them'
+	@echo 'make <example>-install'
+	@echo 'make <example>-uninstall'
+	@echo 'make check           build, then verify the dex checksums'
+	@echo 'make clean           remove everything a build writes'
+	@echo
+	@echo 'examples: $(EXAMPLES)'
+	@echo
+	@echo 'hello_adb is not built here — it has no APK to make.'
+	@echo 'Run it with: sh examples/hello_adb/build.sh'
 
 all: $(EXAMPLES)
 

@@ -80,7 +80,8 @@ To remove: `rm -rf deps/`.
 ## Build
 
 ```sh
-make                          # every example
+make                          # what there is to run
+make all                      # every example
 make raycaster                # one of them
 make raycaster-install        # build, install and launch over adb
 make raycaster-uninstall
