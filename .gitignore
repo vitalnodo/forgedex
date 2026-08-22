@@ -1,0 +1,20 @@
+# Built by setup_deps.sh
+/deps/
+
+# Generated on first build of a signed example
+/keys/
+
+# Build output
+examples/*/classes.dex
+examples/*/app.unsigned.apk
+examples/*/app.apk
+examples/hello_adb/HelloWorld.apk
+examples/*/lib*.so
+examples/*/lib/
+examples/*/assets/
+examples/*/stub/*.so
+
+# Assembled from the .asm beside them
+examples/*/resources.arsc
+examples/*/AndroidManifest.axml
+examples/*/res/layout/*.xml
