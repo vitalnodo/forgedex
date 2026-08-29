@@ -346,6 +346,11 @@ Things I would find interesting, if anyone wants them:
 * checking whether the signer is actually sound — it signs, it is not reviewed;
 * trickier examples, and `try`/`catch`, which the DSL has no answer for yet;
 * more borrowed from smali;
+* [Kaitai Struct](https://kaitai.io/) descriptions of these formats — the
+  [format library](https://formats.kaitai.io/) has no `.ksy` for AXML or
+  `resources.arsc` at all, and [the one for
+  dex](https://formats.kaitai.io/dex/) stops before `code_item` and the
+  annotation structures;
 * a GUI library on top, the way [Capy was ported to
   Android](https://capy-ui.org/blog/porting-capy-to-android/);
 * a GUI editor, for that matter;
