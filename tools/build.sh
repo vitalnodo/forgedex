@@ -36,8 +36,16 @@
 
 set -e
 
-ROOT="../.."
-KEYS="$ROOT/keys"
+#  An example sits two levels down.  A project of its own, with
+#  forgedex as a submodule, names both before sourcing this:
+#  ROOT=forgedex, and KEYS beside its own sources, so that its key
+#  does not live inside somebody else's checkout.
+#
+#  Where setup_deps.sh is, said from where the build was started:
+#  an example is built from the repository root, by make.
+if [ -n "$ROOT" ]; then SETUP="sh $ROOT/setup_deps.sh"; else SETUP="sh setup_deps.sh"; fi
+ROOT="${ROOT:-../..}"
+KEYS="${KEYS:-$ROOT/keys}"
 FASMG="$ROOT/deps/fasmg"
 APKSIGN="$ROOT/deps/apksign"
 
@@ -65,7 +73,7 @@ fi
 
 for tool in "$FASMG" "$APKSIGN"; do
     if [ ! -f "$tool" ]; then
-        echo "Error: $(basename "$tool") not found. Run first: sh setup_deps.sh" >&2
+        echo "Error: $(basename "$tool") not found. Run first: $SETUP" >&2
         exit 1
     fi
 done
@@ -81,7 +89,7 @@ if [ ! -f "$KEYS/key.pk8" ]; then
     #  P-256, because apksign signs with Zig's std and Zig's std has
     #  ECDSA and no RSA.  It mints the certificate too, so no openssl
     #  is involved, and the public key is derived rather than stored.
-    echo "==> Generating a debug signing key in keys/"
+    echo "==> Generating a debug signing key in $KEYS/"
     mkdir -p "$KEYS"
     "$APKSIGN" keygen -k "$KEYS/key.pk8" -c "$KEYS/cert.der" -n debug -d 3650
 fi
