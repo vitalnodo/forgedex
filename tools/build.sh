@@ -25,6 +25,9 @@
 #      LAYOUT_ASM="screen.asm"             # -> res/layout/screen.xml
 #      RES_FILES="res/drawable/icon.png"   # carried in as they are
 #
+#  Media in RES_FILES and ASSET_FILES goes in uncompressed, as aapt
+#  would have it; NO_COMPRESS=.bin:.dat adds extensions to the list.
+#
 #  The steps are: assemble the dex, assemble the manifest, zip the
 #  two together (with lib/arm64-v8a/ when there is a native
 #  library), and sign.  Signing keys are made on first use.
@@ -179,9 +182,23 @@ zip -jq app.unsigned.apk classes.dex "$axml/AndroidManifest.xml"
 for layout in $LAYOUT_ASM; do
     zip -q app.unsigned.apk "res/layout/$(basename "$layout" .asm).xml"
 done
+
+#  Media goes in stored.  Already compressed, it gains nothing from
+#  deflate, and a player opens a raw resource or an asset as a file
+#  descriptor into the APK — which a deflated entry cannot give it:
+#  "probably compressed", and no playback.
+#
+#  The list is aapt's own, the extensions it never compresses.  A
+#  project stores more by naming them, the way Gradle's noCompress
+#  does: NO_COMPRESS=.bin:.dat in its build.sh.
+STORED=.jpg:.jpeg:.png:.gif:.wav:.mp2:.mp3:.ogg:.opus:.aac:.mpg:.mpeg
+STORED=$STORED:.mid:.midi:.smf:.jet:.rtttl:.imy:.xmf:.mp4:.m4a:.m4v
+STORED=$STORED:.3gp:.3gpp:.3g2:.3gpp2:.amr:.awb:.wma:.wmv:.webm:.mkv
+STORED=$STORED${NO_COMPRESS:+:$NO_COMPRESS}
+
 if [ -n "$RES_FILES" ]; then
     # shellcheck disable=SC2086
-    zip -q app.unsigned.apk $RES_FILES
+    zip -q -n "$STORED" app.unsigned.apk $RES_FILES
 fi
 
 if [ -n "$NATIVE_LIB" ]; then
@@ -198,7 +215,7 @@ if [ -n "$ASSET_FILES" ]; then
     for asset in $ASSET_FILES; do
         cp "$asset" assets/
     done
-    zip -rq app.unsigned.apk assets/
+    zip -rq -n "$STORED" app.unsigned.apk assets/
 fi
 
 #  v1 and v2: v1 is what an old enough device knows, v2 is what API
