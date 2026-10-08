@@ -39,7 +39,7 @@ fi
 #  what marco (Nim, and a patch to it) and apksigner (Go, v1 only)
 #  and openssl were all here for.
 APKSIGN_REPO="https://github.com/vitalnodo/apksign"
-APKSIGN_COMMIT="4bcd696"
+APKSIGN_COMMIT="2119744"
 
 if [ ! -f "$DEPS/apksign" ]; then
     echo "==> Building apksign ($APKSIGN_COMMIT)..."

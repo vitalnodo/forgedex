@@ -61,7 +61,7 @@ move them reserve the second half.
 |------|-----|
 | **fasm** | bootstrapping fasmg — `apt install fasm` |
 | **fasmg** | the assembler; built by `setup_deps.sh` from [tgrysztar/fasmg](https://github.com/tgrysztar/fasmg) |
-| **apksign** | signing, and the key to sign with; built by `setup_deps.sh` from [vitalnodo/apksign](https://github.com/vitalnodo/apksign), needs [Zig](https://ziglang.org/) |
+| **apksign** | signing, and the key to sign with; built by `setup_deps.sh` from [vitalnodo/apksign](https://github.com/vitalnodo/apksign), needs [Zig](https://ziglang.org/) 0.17.0 |
 | **zig** | cross-compiles the native libraries — only for the four that carry a `.so` |
 | **adb** | installing to a device (optional) |
 
