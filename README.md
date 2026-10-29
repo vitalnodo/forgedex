@@ -94,6 +94,10 @@ checks what the checksums cannot: that each dex and binary XML is well formed
 and sorted the way the platform wants, and that reordering fields, methods,
 lists or attributes in an example leaves its output byte for byte the same.
 
+Builds are reproducible: the same sources give the same `app.unsigned.apk`
+byte for byte, whatever the time, the time zone, the umask or the directory,
+and the same key gives the same `app.apk`.
+
 Or directly:
 
 ```sh

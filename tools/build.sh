@@ -121,9 +121,13 @@ done
 
 if [ -n "$NATIVE_SRC" ]; then
     # shellcheck disable=SC2086
+    #  -s after the example's own flags: an -O2 there keeps debug
+    #  information, and with it the paths of this checkout and of
+    #  zig's headers, so the library — and the APK — would change
+    #  with the directory it was built in.
     zig cc -target aarch64-linux-musl -Oz -fPIC -shared -w \
         -fno-builtin -fvisibility=hidden \
-        -I"$ROOT/include" $NATIVE_CFLAGS \
+        -I"$ROOT/include" $NATIVE_CFLAGS -s \
         -o "$NATIVE_LIB" $NATIVE_SRC
 
     #  What the library asks the loader for is checked against what
@@ -161,6 +165,40 @@ for layout in $LAYOUT_ASM; do
     "$FASMG" "$layout" "res/layout/$(basename "$layout" .asm).xml"
 done
 
+# ── The archive ───────────────────────────────────────────
+#
+#  Two builds of the same sources give the same APK, byte for byte,
+#  so that one can be checked against another.  What went into it
+#  already was the same — fasmg and zig write the same bytes for the
+#  same input — but zip records more than contents: when each file
+#  was made, who owns it, what umask it was made under.  So every
+#  entry is first laid out in a directory of its own, under its path
+#  in the APK, with one time and one mode, and the archive is made
+#  from there: -X leaves out owner and Unix times, -D leaves out
+#  entries for directories, which aapt never writes either.  The
+#  time is 1980-01-01, the first a zip entry can hold, in UTC so
+#  that the zone of the machine does not move it.
+#
+#  The signer is deterministic too, so the same key gives the same
+#  app.apk.
+
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+out="$(pwd)/app.unsigned.apk"
+
+#  put <file> <path in the APK>
+put() {
+    mkdir -p "$stage/$(dirname "$2")"
+    cp "$1" "$stage/$2"
+    chmod 644 "$stage/$2"
+    TZ=UTC touch -t 198001010000 "$stage/$2"
+}
+
+#  pack [zip options] <path in the APK>...
+pack() {
+    (cd "$stage" && TZ=UTC zip -X -D -q "$out" "$@")
+}
+
 #  resources.arsc goes in stored, and goes in first.  Stored because
 #  the platform maps it out of the APK rather than reading it, and
 #  from Android 11 refuses to install one that is deflated; first
@@ -168,15 +206,19 @@ done
 #  entry of an archive begins at a known offset, which is alignment
 #  by arithmetic rather than by luck.
 if [ -n "$RES_ASM" ]; then
-    zip -jq0 app.unsigned.apk resources.arsc
+    put resources.arsc resources.arsc
+    pack -0 resources.arsc
 fi
 
-zip -jq app.unsigned.apk classes.dex AndroidManifest.xml
+put classes.dex classes.dex
+put AndroidManifest.xml AndroidManifest.xml
+pack classes.dex AndroidManifest.xml
 
-#  res/ keeps its paths — `zip -j` is there to throw them away, and
-#  the table refers to these files by path.
+#  res/ keeps its paths: the table refers to these files by path.
 for layout in $LAYOUT_ASM; do
-    zip -q app.unsigned.apk "res/layout/$(basename "$layout" .asm).xml"
+    name="res/layout/$(basename "$layout" .asm).xml"
+    put "$name" "$name"
+    pack "$name"
 done
 
 #  Media goes in stored.  Already compressed, it gains nothing from
@@ -193,25 +235,26 @@ STORED=$STORED:.3gp:.3gpp:.3g2:.3gpp2:.amr:.awb:.wma:.wmv:.webm:.mkv
 STORED=$STORED${NO_COMPRESS:+:$NO_COMPRESS}
 
 if [ -n "$RES_FILES" ]; then
+    for f in $RES_FILES; do
+        put "$f" "$f"
+    done
     # shellcheck disable=SC2086
-    zip -q -n "$STORED" app.unsigned.apk $RES_FILES
+    pack -n "$STORED" $RES_FILES
 fi
 
 if [ -n "$NATIVE_LIB" ]; then
-    mkdir -p lib/arm64-v8a
-    cp "$NATIVE_LIB" lib/arm64-v8a/
-    zip -rq app.unsigned.apk lib/
+    put "$NATIVE_LIB" "lib/arm64-v8a/$(basename "$NATIVE_LIB")"
+    pack "lib/arm64-v8a/$(basename "$NATIVE_LIB")"
 fi
 
 #  assets/ is the one part of an APK that needs no aapt and no
 #  resource ids: entries go in under their own names, and
 #  AssetManager.open finds them by those names.
 if [ -n "$ASSET_FILES" ]; then
-    mkdir -p assets
     for asset in $ASSET_FILES; do
-        cp "$asset" assets/
+        put "$asset" "assets/$(basename "$asset")"
     done
-    zip -rq -n "$STORED" app.unsigned.apk assets/
+    pack -n "$STORED" $(for asset in $ASSET_FILES; do echo "assets/$(basename "$asset")"; done)
 fi
 
 #  v1 and v2: v1 is what an old enough device knows, v2 is what API
