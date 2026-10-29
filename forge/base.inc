@@ -4,8 +4,8 @@
 ;  A dex, a resources.arsc and a binary AXML have almost nothing
 ;  in common, but all three are laid out by writing fields of a
 ;  fixed width and aligning to a boundary, and all three keep
-;  pools of values that are each written once.  That is all this
-;  is.
+;  pools of values that are each written once, strings among them
+;  that count their length in UTF-16 units.  That is all this is.
 ;
 ;  It is included by forgedex.inc, forgeres.inc and forgeaxml.inc
 ;  rather than by anything an example writes.  Before it existed,
@@ -166,6 +166,40 @@ calminstruction _intern? pool*, miss*, value*, len, payload
   done:
     arrange sym, pool#=_found
     publish sym, found
+end calminstruction
+
+; ── UTF-16 length ─────────────────────────────────────────
+;
+;  How many UTF-16 units `len` bytes of UTF-8 in `value` become.
+;  A dex string and a resource pool string both lead with this
+;  number, and it is not the number of bytes: "Привіт" is six
+;  units and twelve bytes.
+;
+;  Every byte that is not a continuation byte — not 10xxxxxx —
+;  starts a character.  A four-byte sequence is a code point above
+;  the basic plane, which UTF-16 writes as a surrogate pair, so it
+;  counts for two.
+
+calminstruction _utf16_length? result*, value*, len*
+    local i, n, b, v, l
+    compute v, value
+    compute l, len
+    compute n, 0
+    compute i, 0
+  scan:
+    check i < l
+    jno done
+    compute b, (v shr (i * 8)) and $FF
+    compute i, i + 1
+    check (b and $C0) = $80
+    jyes scan
+    compute n, n + 1
+    check (b and $F8) = $F0
+    jno scan
+    compute n, n + 1
+    jump scan
+  done:
+    publish result, n
 end calminstruction
 
 ; ── Alignment ─────────────────────────────────────────────

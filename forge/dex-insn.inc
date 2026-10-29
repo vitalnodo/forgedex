@@ -511,24 +511,7 @@ def_3rc_ref invoke_interface_range, $78
 
 struc defstring? _value?*, _len?*
     local utf16len?, i?, b?, b1?, b2?, b3?, cp?, hi?, lo?
-    utf16len? = 0
-    i? = 0
-    while i < _len
-        b? = (_value shr (i * 8)) and $FF
-        if b < $80
-            utf16len? = utf16len? + 1
-            i? = i + 1
-        else if b < $E0
-            utf16len? = utf16len? + 1
-            i? = i + 2
-        else if b < $F0
-            utf16len? = utf16len? + 1
-            i? = i + 3
-        else
-            utf16len? = utf16len? + 2
-            i? = i + 4
-        end if
-    end while
+    _utf16_length utf16len?, _value, _len
     label .
     .utf16_size?: leb128 utf16len?
     ; emit MUTF-8 data: convert 4-byte UTF-8 to surrogate pairs

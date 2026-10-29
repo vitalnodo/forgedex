@@ -103,30 +103,6 @@ macro _res_length? n?*
     end if
 end macro
 
-;  How many UTF-16 units the UTF-8 in `s` would become.
-;
-;  Every byte that is not a continuation byte — not 10xxxxxx —
-;  starts a character.  A four-byte sequence is a code point above
-;  the basic plane, which UTF-16 writes as a surrogate pair, so it
-;  counts for two.
-macro _utf16_length? result?*, s?*
-    local n, c
-    n = $00
-    virtual at $00
-        db s
-        repeat ($ - $$), i:$00
-            load c : $01 from i
-            if (c and $C0) <> $80
-                n = n + $01
-                if (c and $F8) = $F0
-                    n = n + $01
-                end if
-            end if
-        end repeat
-    end virtual
-    result = n
-end macro
-
 ;  One string as a pool holds it: how many UTF-16 units it would
 ;  take, how many bytes it does take, the bytes, and a NUL that
 ;  nothing counts and everything expects.
@@ -134,7 +110,7 @@ end macro
 ;  Shared with forgeaxml.inc, which writes a pool of its own and
 ;  used to carry a second copy of this.
 macro _pool_string? s?*
-    _utf16_length __sp_u16, s
+    _utf16_length __sp_u16, s, lengthof s
     _res_length __sp_u16
     _res_length lengthof s
     db    s
