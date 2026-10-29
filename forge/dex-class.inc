@@ -149,12 +149,69 @@ end struc
 ;  Named by descriptor like everything else, so the class and its
 ;  superclass reach the type pool the same way.
 
+; The classes come out by the index of their type, not in the order
+; the lists declare them, except that a class this file also defines
+; as a superclass or an interface goes first, which the format
+; requires.  Each pick is the smallest type among those whose own
+; supertypes are already out.  The class data follows the same order.
 macro emit_class_defs?
     __class_defs_phase = $01
     __defclass_index = $00
     _walk_lists
     __class_count = __defclass_index
     __class_defs_phase = $00
+    repeat __class_count k:$00
+        __cplaced_#k = $00
+    end repeat
+    repeat __class_count r:$00
+        __cbest = -$01
+        repeat __class_count k:$00
+            if __cplaced_#k = $00
+                __cready = $01
+                repeat __class_count j:$00
+                    if __cplaced_#j = $00
+                        _class_needs __cneeds, k, __dccls_#j
+                        if __cneeds
+                            __cready = $00
+                        end if
+                    end if
+                end repeat
+                if __cready & ((__cbest < $00) | (__dccls_#k < __cbestkey))
+                    __cbest = k
+                    __cbestkey = __dccls_#k
+                end if
+            end if
+        end repeat
+        if __cbest < $00
+            err 'classes in this file extend or implement each other in a circle'
+        else
+            repeat 1 k:__cbest
+                __cplaced_#k = $01
+                __cord_#r = k
+                __class_def_#k class_def_item __dccls_#k, __dcflags_#k, __dcsup_#k, \
+                    __dcif_#k, NO_INDEX, $00, __class_data_#k, $00
+            end repeat
+        end if
+    end repeat
+end macro
+
+; Whether class k has to wait for the class whose type is t: t is
+; its superclass, or one of the interfaces it lists, found in the
+; table of type lists by where its list is.
+macro _class_needs? result?*, k?*, t?*
+    result = $00
+    if __dcsup_#k = t
+        result = $01
+    end if
+    repeat __tl_total, i:$00
+        if __tl_at_#i = __dcif_#k
+            repeat __tl_n_#i, j:$00
+                if __tl_t_#i#_#j = t
+                    result = $01
+                end if
+            end repeat
+        end if
+    end repeat
 end macro
 
 macro defclass? descriptor?*, flags?*, super?*, ifaces?
@@ -176,9 +233,12 @@ macro defclass? descriptor?*, flags?*, super?*, ifaces?
         else
             __dc_if = ifaces
         end match
+        ;  Written by emit_class_defs once every class is known.
         repeat 1 k:__defclass_index
-            __class_def_#k class_def_item __dc_cls, flags, __dc_sup, __dc_if, \
-                NO_INDEX, $00, __class_data_#k, $00
+            __dccls_#k = __dc_cls
+            __dcflags_#k = flags
+            __dcsup_#k = __dc_sup
+            __dcif_#k = __dc_if
         end repeat
     else
         _use_type descriptor, lengthof descriptor
@@ -197,12 +257,11 @@ struc deftypelist? types?*&
         end iterate
         align $04
         label .
-        __type_list_count? = __type_list_count? + $01
-        uint n
+        _type_list n
         iterate t?, types
             _lookup_string __dtl_s, t, lengthof t
             _lookup_type __dtl_t, __dtl_s
-            ushort __dtl_t
+            _type_list_type __dtl_t
         end iterate
     else
         iterate t?, types

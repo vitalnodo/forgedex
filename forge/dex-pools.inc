@@ -474,10 +474,9 @@ macro emit_proto_type_lists?
                 align $04
                 __ptl_#k:
                 __ptlname_#k = __ptl_#k
-                __type_list_count? = __type_list_count? + $01
-                uint __pcnt_#k
+                _type_list __pcnt_#k
                 repeat __pcnt_#k j:$00
-                    ushort __pp_#k#_#j
+                    _type_list_type __pp_#k#_#j
                 end repeat
             else
                 repeat 1 o:__powner_#k

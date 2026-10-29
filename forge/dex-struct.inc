@@ -92,6 +92,33 @@ struc type_item? _type_idx?*
 end struc
 
 __type_list_count? = 0
+__tl_seq = 0
+
+; The body of a type list, written from where it is to start, which
+; is four-byte aligned: the count, then each type in turn.  Every
+; list is also kept as a row of a table — where it is, how many
+; types, which — for emit_class_defs, which has to know the
+; interfaces a class lists before they are written.  A row is set
+; once a pass, so the earlier reader gets the last pass's.
+macro _type_list? n?*
+    __type_list_count? = __type_list_count? + 1
+    __tl_cur = __tl_seq
+    __tl_j = 0
+    repeat 1 i:__tl_cur
+        __tl_at_#i = $
+        __tl_n_#i = n
+    end repeat
+    __tl_seq = __tl_seq + 1
+    uint n
+end macro
+
+macro _type_list_type? t?*
+    repeat 1 i:__tl_cur, j:__tl_j
+        __tl_t_#i#_#j = t
+    end repeat
+    __tl_j = __tl_j + 1
+    ushort t
+end macro
 
 struc type_list? _size?*, _list?*
     __type_list_count? = __type_list_count? + 1

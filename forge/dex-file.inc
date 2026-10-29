@@ -141,15 +141,19 @@ end macro
 ;  The prototypes' parameter lists, then the classes' interface
 ;  lists, which are type lists too and are counted with them.
 macro _dex_type_lists?
+    __tl_seq = $00
     emit_proto_type_lists
     align $04
     match i, __dex_interfaces
         i
     end match
+    __tl_total = __tl_seq
 end macro
 
 macro _dex_class_data?
-    repeat __class_count k:$00
-        __class_data_#k defclassdata k
+    repeat __class_count r:$00
+        repeat 1 k:__cord_#r
+            __class_data_#k defclassdata k
+        end repeat
     end repeat
 end macro
