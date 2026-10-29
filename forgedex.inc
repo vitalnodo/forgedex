@@ -80,6 +80,26 @@ macro leb128? list?*&
     end iterate
 end macro
 
+;  The signed form, which stops where the sign bit of the last group
+;  agrees with what is left: 64 needs two bytes here and one above.
+macro sleb128? list?*&
+    local value?, least?, more?
+    iterate item?*, list
+        value? = item
+        more? = $01
+        while (more)
+            least? = value and $7F
+            value? = value shr $07
+            more? = $00
+            if ~ (((value = $00) & ((least and $40) = $00)) | ((value = -$01) & ((least and $40) <> $00)))
+                least? = least or $80
+                more? = $01
+            end if
+            db least
+        end while
+    end iterate
+end macro
+
 include 'forge/dex-hash.inc'
 include 'forge/dex-const.inc'
 include 'forge/dex-struct.inc'

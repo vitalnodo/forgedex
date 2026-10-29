@@ -324,6 +324,7 @@ macro _dex_collect?
     __deffield_index = $00
     __fref_n = $00
     __fdecl_n = $00
+    __pl_seq = $00
     ;  The interfaces a class lists are collected too: a type that
     ;  nothing else names would otherwise not be in the pool when
     ;  its list comes to be written.  They go first, so that a name

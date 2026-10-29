@@ -228,7 +228,4 @@ struc code_item? _registers_size?*, _ins_size?*, _outs_size?*, _tries_size?*, _d
     load opcode? : (size shl $01) from _insns:base
     .insns_size?: uint size
     .insns?: db opcode
-    if (_tries_size)
-        err 'try/catch is not supported yet, pass tries_size = 0'
-    end if
 end struc

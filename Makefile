@@ -1,5 +1,5 @@
 EXAMPLES = hello_gui counter_plus_minus fizzbuzz canvas fetch raycaster \
-           hello_jni dtmf nativewin shaders themes
+           hello_jni dtmf nativewin shaders themes selftest
 
 .PHONY: help all deps check verify clean $(EXAMPLES)
 

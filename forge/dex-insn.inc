@@ -563,6 +563,132 @@ def_3rc_ref invoke_direct_range,    $76
 def_3rc_ref invoke_static_range,    $77
 def_3rc_ref invoke_interface_range, $78
 
+; ── Tables beside the code ────────────────────────────────
+;
+;  A switch and fill-array-data point at a table, and a try range at
+;  its handlers, and all of them are tables kept beside a method's
+;  instructions and addressed relative to them.  So there is one way
+;  of keeping them: the instruction or directive records numbers, and
+;  `end method` and emit_code lay the tables out — the payloads at
+;  the end of the body, each four-byte aligned, the try items and
+;  handlers after it.  An offset to something not laid out yet is a
+;  symbol defined further on, which fasmg takes from the pass before.
+;
+;      packed_switch   v0, 10, .ten, .eleven, .twelve   ; first key, then a target each
+;      sparse_switch   v0, -1, .neg, 100, .hundred      ; key, target, …, in any order
+;      fill_array_data v1, 4, 1, 2, 3                   ; element width, then the values
+;
+;      catch     "Ljava/lang/NumberFormatException;", .try, .try_end, .bad_number
+;      catch_all .try, .try_end, .anything
+;
+;  A target is a label in the body.  The keys of a sparse switch are
+;  put in order here, since the format wants them ascending.
+
+__pl_seq = $00
+
+; The offset in code units from the instruction at `at` to a target.
+macro _pl_delta? result?*, target?*, at?*
+    if ((target) - (at)) and $01
+        err 'a target is not on an instruction boundary'
+    end if
+    result = ((target) - (at)) shr $01
+end macro
+
+; 31t: a register and a 32-bit offset to the table.
+macro _pl_31t? op?*, a?*, s?*
+    _use_reg a, $08, 'register'
+    __pl_off = (__payload_#s - __pl_at_#s) shr $01
+    dw (a shl 8) or op, __pl_off and $FFFF, (__pl_off shr $10) and $FFFF
+end macro
+
+macro packed_switch? a?*, first?*, targets?*&
+    repeat 1 s:__pl_seq
+        __pl_kind_#s = $01
+        __pl_at_#s = $
+        __pl_key_#s = first
+        __pl_n_#s = $00
+        iterate t?, targets
+            repeat 1 j:__pl_n_#s
+                _pl_delta __pl_t_#s#_#j, t, __pl_at_#s
+            end repeat
+            __pl_n_#s = __pl_n_#s + $01
+        end iterate
+        _pl_31t $2B, a, s
+    end repeat
+    __pl_seq = __pl_seq + $01
+end macro
+
+macro sparse_switch? a?*, cases?*&
+    repeat 1 s:__pl_seq
+        __pl_kind_#s = $02
+        __pl_at_#s = $
+        __pl_n_#s = $00
+        iterate <key?, t?>, cases
+            repeat 1 j:__pl_n_#s
+                __pl_k_#s#_#j = key
+                _chk_s __pl_k_#s#_#j, $20, 'switch key'
+                _pl_delta __pl_t_#s#_#j, t, __pl_at_#s
+            end repeat
+            __pl_n_#s = __pl_n_#s + $01
+        end iterate
+        _order __pl_k_#s#_, _key_less, __pl_r_#s#_, __pl_o_#s#_, __pl_n_#s, \
+            'two cases of a sparse switch share a key'
+        _pl_31t $2C, a, s
+    end repeat
+    __pl_seq = __pl_seq + $01
+end macro
+
+macro fill_array_data? a?*, width?*, values?*&
+    if ~ (((width) = $01) | ((width) = $02) | ((width) = $04) | ((width) = $08))
+        err 'an element is 1, 2, 4 or 8 bytes wide'
+    end if
+    repeat 1 s:__pl_seq
+        __pl_kind_#s = $03
+        __pl_at_#s = $
+        __pl_w_#s = width
+        __pl_n_#s = $00
+        iterate v?, values
+            repeat 1 j:__pl_n_#s
+                __pl_d_#s#_#j = v
+            end repeat
+            __pl_n_#s = __pl_n_#s + $01
+        end iterate
+        _pl_31t $26, a, s
+    end repeat
+    __pl_seq = __pl_seq + $01
+end macro
+
+; A try range and one of its handlers.  Ranges are kept as code
+; units; a type of -1 is catch-all.  The order handlers of one range
+; are written in is kept, since the first that matches is the one
+; taken.
+macro _try_add? start?*, finish?*, type?*, handler?*
+    if ((start) or (finish) or (handler)) and $01
+        err 'a try range or handler is not on an instruction boundary'
+    end if
+    if (finish) <= (start)
+        err 'a try range ends before it starts'
+    end if
+    repeat 1 k:__m_k
+        repeat 1 i:__ctry_n_#k
+            __ctry_s_#k#_#i = (start) shr $01
+            __ctry_e_#k#_#i = (finish) shr $01
+            __ctry_t_#k#_#i = type
+            __ctry_h_#k#_#i = (handler) shr $01
+        end repeat
+        __ctry_n_#k = __ctry_n_#k + $01
+    end repeat
+end macro
+
+macro catch? descriptor?*, start?*, finish?*, handler?*
+    _ref_type descriptor
+    _try_add start, finish, __resolved_type, handler
+end macro
+
+macro catch_all? start?*, finish?*, handler?*
+    _try_add start, finish, -$01, handler
+end macro
+
 struc defstring? _value?*, _len?*
     local utf16len?, i?, b?, b1?, b2?, b3?, cp?, hi?, lo?
     _utf16_length utf16len?, _value, _len

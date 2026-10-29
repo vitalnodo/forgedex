@@ -308,6 +308,10 @@ macro method? ref?*, flags?*, frame?*
     end repeat
     __max_reg = -$01
     __max_outs = $00
+    __m_pl_from = __pl_seq
+    repeat 1 k:__m_k
+        __ctry_n_#k = $00
+    end repeat
     ;  The body goes into an area of its own, once, with its final
     ;  indices; emit_code copies it out in method order.
     virtual at $00
@@ -317,6 +321,7 @@ macro method? ref?*, flags?*, frame?*
 end macro
 
 macro end?.method?
+    _pl_layout
     end virtual
     if __max_reg >= __m_regs
         err 'method uses a register at or above the frame size'
@@ -392,9 +397,139 @@ macro emit_code?
     repeat __method_n r:$00
         repeat 1 k:__mord_#r
             if __mbody_#k
-                __code_#k code_item __cregs_#k, __cins_#k, __couts_#k, $00, $00, $FFFF, __code_#k#_insns
+                _try_group k
+                __code_#k code_item __cregs_#k, __cins_#k, __couts_#k, __tg_n, $00, $FFFF, __code_#k#_insns
+                _try_write k
                 align $04
             end if
         end repeat
     end repeat
+end macro
+
+; The payloads of the method being closed, at the end of its body,
+; each four-byte aligned — nop, which is two zero bytes, fills.
+macro _pl_layout?
+    repeat __pl_seq - __m_pl_from, q:$00
+        repeat 1 s:__m_pl_from + q
+            align $04
+          __payload_#s:
+            if __pl_kind_#s = $01
+                dw $0100, __pl_n_#s
+                dd (__pl_key_#s) and $FFFFFFFF
+                repeat __pl_n_#s j:$00
+                    dd __pl_t_#s#_#j and $FFFFFFFF
+                end repeat
+            else if __pl_kind_#s = $02
+                dw $0200, __pl_n_#s
+                repeat __pl_n_#s r:$00
+                    repeat 1 j:__pl_o_#s#_#r
+                        dd __pl_k_#s#_#j and $FFFFFFFF
+                    end repeat
+                end repeat
+                repeat __pl_n_#s r:$00
+                    repeat 1 j:__pl_o_#s#_#r
+                        dd __pl_t_#s#_#j and $FFFFFFFF
+                    end repeat
+                end repeat
+            else
+                dw $0300, __pl_w_#s
+                dd __pl_n_#s
+                repeat __pl_n_#s j:$00
+                    emit __pl_w_#s : (__pl_d_#s#_#j) and (($01 shl (__pl_w_#s * $08)) - $01)
+                end repeat
+                align $02
+            end if
+        end repeat
+    end repeat
+end macro
+
+; The catches of method k, as try items: one per range, the ranges in
+; ascending order, each with its handlers in the order written.
+; Ranges that are the same are one item; ranges that overlap without
+; being the same would have to be cut where they cross, which is not
+; done here, so they are an error.
+macro _try_group? k?*
+    __tg_n = $00
+    repeat __ctry_n_#k i:$00
+        __tg_at = -$01
+        repeat __tg_n g:$00
+            if (__tg_s_#g = __ctry_s_#k#_#i) & (__tg_e_#g = __ctry_e_#k#_#i)
+                __tg_at = g
+            end if
+        end repeat
+        if __tg_at < $00
+            __tg_at = __tg_n
+            repeat 1 g:__tg_at
+                __tg_s_#g = __ctry_s_#k#_#i
+                __tg_e_#g = __ctry_e_#k#_#i
+                __tg_hn_#g = $00
+                __tg_all_#g = -$01
+            end repeat
+            __tg_n = __tg_n + $01
+        end if
+        repeat 1 g:__tg_at
+            if __ctry_t_#k#_#i = -$01
+                if __tg_all_#g >= $00
+                    err 'one try range has two catch-alls'
+                end if
+                __tg_all_#g = __ctry_h_#k#_#i
+            else
+                if __tg_all_#g >= $00
+                    err 'a catch after the catch-all of its range is never reached'
+                end if
+                repeat 1 h:__tg_hn_#g
+                    __tg_ht_#g#_#h = __ctry_t_#k#_#i
+                    __tg_ha_#g#_#h = __ctry_h_#k#_#i
+                end repeat
+                __tg_hn_#g = __tg_hn_#g + $01
+            end if
+        end repeat
+    end repeat
+    _order __tg_s_, _key_less, __tg_r_, __tg_o_, __tg_n, \
+        'two try ranges of one method start together but end apart'
+    if __tg_n > $01
+        repeat __tg_n - $01, r:$00, r1:$01
+            repeat 1 a:__tg_o_#r, b:__tg_o_#r1
+                if __tg_e_#a > __tg_s_#b
+                    err 'try ranges of one method overlap; nested ranges are not supported yet'
+                end if
+            end repeat
+        end repeat
+    end if
+end macro
+
+; After the instructions: two bytes of padding when they are an odd
+; number of units, the try items, then the handler lists they point
+; into, each at an offset from the start of the list.
+macro _try_write? k?*
+    if __tg_n
+        if ($ - __code_#k#.insns) and $02
+            dw $0000
+        end if
+        repeat __tg_n r:$00
+            repeat 1 g:__tg_o_#r
+                uint   __tg_s_#g
+                ushort __tg_e_#g - __tg_s_#g
+                ushort __handler_#k#_#g - __handlers_#k
+            end repeat
+        end repeat
+      __handlers_#k:
+        leb128 __tg_n
+        repeat __tg_n r:$00
+            repeat 1 g:__tg_o_#r
+              __handler_#k#_#g:
+                if __tg_all_#g >= $00
+                    sleb128 -__tg_hn_#g
+                else
+                    sleb128 __tg_hn_#g
+                end if
+                repeat __tg_hn_#g h:$00
+                    leb128 __tg_ht_#g#_#h, __tg_ha_#g#_#h
+                end repeat
+                if __tg_all_#g >= $00
+                    leb128 __tg_all_#g
+                end if
+            end repeat
+        end repeat
+    end if
 end macro
