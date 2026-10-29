@@ -55,10 +55,8 @@
 ; reference names it, and __type_found says which it is.
 macro _use_type? v?*, l?*
     _chk_descriptor v, l
-    if __sphase = $01
-        _intern __str, add, v, l
-        _intern __type, add, __str_found
-    end if
+    _intern __str, add, v, l
+    _intern __type, add, __str_found
 end macro
 
 ; ── Type list ────────────────────────────────────────────
@@ -164,23 +162,21 @@ __deffield_index  = $00
 __field_n         = $00
 
 macro deffield? ref?*, flags?
-    if __sphase = $01
-        _ref_pair ref
-        _use_field_ref_types __rf_v, __rf_l
-        repeat 1 k:__deffield_index
-            match , flags
-                __fmember_#k = $00
-                __fflags_#k = $00
-            else
-                __fmember_#k = $01
-                __fflags_#k = flags
-            end match
-            __fcls_#k = __uf_cls
-            __fnm_#k  = __uf_nm
-            __fty_#k  = __uf_ty
-        end repeat
-        __deffield_index = __deffield_index + $01
-    end if
+    _ref_pair ref
+    _use_field_ref_types __rf_v, __rf_l
+    repeat 1 k:__deffield_index
+        match , flags
+            __fmember_#k = $00
+            __fflags_#k = $00
+        else
+            __fmember_#k = $01
+            __fflags_#k = flags
+        end match
+        __fcls_#k = __uf_cls
+        __fnm_#k  = __uf_nm
+        __fty_#k  = __uf_ty
+    end repeat
+    __deffield_index = __deffield_index + $01
 end macro
 
 macro emit_field_ids?
@@ -210,18 +206,16 @@ __method_n  = $00
 ; A method with no code of its own: one the pool should carry that
 ; nothing calls, or a native one, whose body is in the library.
 macro defmethod? ref?*, flags?
-    if __sphase = $01
-        _ref_pair ref
-        _use_method_ref __rf_v, __rf_l
-        match , flags
-        else
-            repeat 1 k:__method_found
-                __mmember_#k = $01
-                __mflags_#k = flags
-                __mcode_#k = $00
-            end repeat
-        end match
-    end if
+    _ref_pair ref
+    _use_method_ref __rf_v, __rf_l
+    match , flags
+    else
+        repeat 1 k:__method_found
+            __mmember_#k = $01
+            __mflags_#k = flags
+            __mcode_#k = $00
+        end repeat
+    end match
 end macro
 
 ; ── Prototype list ───────────────────────────────────────
@@ -262,27 +256,25 @@ __proto_n  = $00
 __defproto_maxpar = $00
 
 macro defproto? base?*, return?*, params?
-    if __sphase = $01
-        _use_type return, lengthof return
-        __dp_ret = __type_found
-        __ref_n = $00
-        iterate p?, params
-            _use_type p, lengthof p
-            repeat 1 j:__ref_n
-                __ref_p_#j = __type_found
-            end repeat
-            __ref_n = __ref_n + $01
-        end iterate
-        _shorty_of return, params
-        _intern __str, add, __shortyv, __shortyl
-        _intern_proto __dp_ret, __ref_n, __str_found
-        ;  The name is given once the ranks are in, by _dex_settle.
-        repeat 1 i:__defproto_index
-            __pdecl_#i = __proto_found
-            __pdecl_name_#i equ base
+    _use_type return, lengthof return
+    __dp_ret = __type_found
+    __ref_n = $00
+    iterate p?, params
+        _use_type p, lengthof p
+        repeat 1 j:__ref_n
+            __ref_p_#j = __type_found
         end repeat
-        __defproto_index = __defproto_index + $01
-    end if
+        __ref_n = __ref_n + $01
+    end iterate
+    _shorty_of return, params
+    _intern __str, add, __shortyv, __shortyl
+    _intern_proto __dp_ret, __ref_n, __str_found
+    ;  The name is given once the ranks are in, by _dex_settle.
+    repeat 1 i:__defproto_index
+        __pdecl_#i = __proto_found
+        __pdecl_name_#i equ base
+    end repeat
+    __defproto_index = __defproto_index + $01
 end macro
 
 macro emit_proto_ids?
@@ -329,8 +321,8 @@ end macro
 ;  Then the pools are put in order from the bottom up, and each one
 ;  read through the ranks of the ones under it — the strings first,
 ;  then the types by their strings' ranks, the prototypes by their
-;  types', and the fields and methods by all of those.  Only the
-;  code is walked again, since it is written with the final indices.
+;  types', and the fields and methods by all of those.  The code is
+;  assembled in the same walk, with ranks it is given a pass early.
 
 macro _dex_collect?
     __emitting = $00
@@ -342,11 +334,20 @@ macro _dex_collect?
     __defstr_index = $00
     __defproto_index = $00
     __deffield_index = $00
-    __sphase = $01
+    __fref_n = $00
+    __fdecl_n = $00
+    ;  The interfaces a class lists are collected too: a type that
+    ;  nothing else names would otherwise not be in the pool when
+    ;  its list comes to be written.  They go first, so that a name
+    ;  they set — `_hello_ifaces = _oncl_tl` — is already set when a
+    ;  class reads it, rather than being read ahead of a second
+    ;  setting, which fasmg will not do.
     virtual at $00
+        match i, __dex_interfaces
+            i
+        end match
         _walk_lists
     end virtual
-    __sphase = $00
     __class_count = __defclass_index
     _dex_settle
     __emitting = $01
@@ -431,6 +432,11 @@ macro _dex_settle?
     end repeat
 
     __field_n = __deffield_index
+    ;  The declared fields by their parts as met, for the references
+    ;  to be matched against once the fields have ranks.
+    repeat __field_n k:$00
+        _intern __fdecl, add, (__fcls_#k shl $40) or (__fnm_#k shl $20) or __fty_#k,, k
+    end repeat
     repeat __field_n k:$00
         repeat 1 c:__fcls_#k, n:__fnm_#k, t:__fty_#k
             __fcls_#k = __trank_#c
@@ -441,6 +447,18 @@ macro _dex_settle?
     end repeat
     _order __field_v_, _key_less, __frank_, __ford_, __field_n, \
         'two fields share a class, a name and a type'
+    repeat __fref_n r:$00
+        _intern __fdecl, find, __fref_v_#r
+        if __fdecl_found < $00
+            __frefrank_#r = -$01
+        else
+            repeat 1 e:__fdecl_found
+                repeat 1 k:__fdecl_i_#e
+                    __frefrank_#r = __frank_#k
+                end repeat
+            end repeat
+        end if
+    end repeat
 
     repeat __method_n k:$00
         repeat 1 c:__mcls_#k, n:__mnm_#k, p:__mpr_#k

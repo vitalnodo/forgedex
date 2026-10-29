@@ -4,12 +4,12 @@
 ;  Two things that belong together because one exists to serve the
 ;  other.
 ;
-;  The walk: the declarations are read twice — once to collect what
-;  they name into every pool at once, which _dex_collect in
-;  dex-pools.inc does, and once to assemble the code with the final
-;  indices.  The lists emit nothing while they are collected, but the
-;  instructions among them emit whatever they are asked to, so that
-;  walk happens inside a virtual block and the bytes are thrown away.
+;  The walk: the declarations are read once, by _dex_collect in
+;  dex-pools.inc, and everything they name goes into its pool on
+;  the way.  The code is assembled in the same walk, each method body
+;  into an area of its own, with the ranks the pools settle to later
+;  in the pass; the walk itself is inside a virtual block, since the
+;  lists write nothing where they stand.
 ;
 ;  The pool: strings are interned rather than declared — asking for
 ;  one that is already there gives back the one that is there.  The
@@ -48,8 +48,6 @@ __emitting = $01
 __defclass_index = $00
 __class_count = $00
 
-; Set only while the code section is being produced.
-__code_phase = $00
 
 ; The lists a file is built from, named once.  Both walks read all
 ; of them, so there is no per-pool list to keep in step.
@@ -67,21 +65,18 @@ macro _walk_lists?
 end macro
 
 __str_n  = $00              ; distinct strings in the pool
-__sphase = $00              ; 1 while the lists are collected
 
 ; Each declaration that contributes a string remembers which pool
 ; entry it landed in, and under what name, so that _dex_settle can
 ; give the name the position the sort gave the entry.
 
 macro defstr? base?*, text?*&
-    if __sphase = $01
-        _intern __str, add, text, lengthof text
-        repeat 1 k:__defstr_index
-            __dstr_slot_#k = __str_found
-            __dstr_name_#k equ base
-        end repeat
-        __defstr_index = __defstr_index + $01
-    end if
+    _intern __str, add, text, lengthof text
+    repeat 1 k:__defstr_index
+        __dstr_slot_#k = __str_found
+        __dstr_name_#k equ base
+    end repeat
+    __defstr_index = __defstr_index + $01
 end macro
 
 macro emit_string_ids?

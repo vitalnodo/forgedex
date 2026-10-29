@@ -11,10 +11,9 @@
 ;  way — which is why it is a table and not prose.
 ;
 ;  A def_*_ref helper makes an instruction that names a class, a
-;  field or a method outright.  Those behave differently in the two
-;  phases: while the pools are being collected the reference feeds
-;  them, and once they are settled it answers with an index.  That is
-;  why they are separate helpers rather than a flag.
+;  field or a method outright.  The reference feeds the pools and is
+;  answered with the rank of what it named, which the pools settle to
+;  later in the same pass; dex-ref.inc says how.
 ; ══════════════════════════════════════════════════════════
 
 ;
@@ -23,29 +22,17 @@
 
 macro def_22c_ref? name?*, op?*
     macro name? a?*, b?*, ref?*&
-        if __code_phase
-            _ref_pair ref
-            _resolve_field __rf_v, __rf_l
-            __fmt_22c op, a, b, __ref_field
-        else
-            _ref_pair ref
-            _use_field_ref_types __rf_v, __rf_l
-            __fmt_22c op, a, b, $00
-        end if
+        _ref_pair ref
+        _ref_field __rf_v, __rf_l
+        __fmt_22c op, a, b, __ref_field
     end macro
 end macro
 
 macro def_21c_ref? name?*, op?*
     macro name? a?*, ref?*&
-        if __code_phase
-            _ref_pair ref
-            _resolve_field __rf_v, __rf_l
-            __fmt_21c op, a, __ref_field
-        else
-            _ref_pair ref
-            _use_field_ref_types __rf_v, __rf_l
-            __fmt_21c op, a, $00
-        end if
+        _ref_pair ref
+        _ref_field __rf_v, __rf_l
+        __fmt_21c op, a, __ref_field
     end macro
 end macro
 
@@ -64,8 +51,8 @@ end macro
 ;
 ;  The helpers below this table are the ones that do more than pass
 ;  operands on: a wide register that reserves its pair, or a
-;  reference that feeds the pools in one phase and answers with an
-;  index in the other.  Those are written out in full.
+;  reference that feeds the pools and is answered with a rank.
+;  Those are written out in full.
 
 macro _def_plain? helper?*, decl?, pass?, fmt?*
     ;  def_10x takes no operands at all, and `fmt op, <nothing>`
@@ -175,15 +162,9 @@ end macro
 macro def_22c_ref_w? name?*, op?*
     macro name? a?*, b?*, ref?*&
         _use_reg_wide a, $04, 'wide register'
-        if __code_phase
-            _ref_pair ref
-            _resolve_field __rf_v, __rf_l
-            __fmt_22c op, a, b, __ref_field
-        else
-            _ref_pair ref
-            _use_field_ref_types __rf_v, __rf_l
-            __fmt_22c op, a, b, $00
-        end if
+        _ref_pair ref
+        _ref_field __rf_v, __rf_l
+        __fmt_22c op, a, b, __ref_field
     end macro
 end macro
 
@@ -257,29 +238,17 @@ def_10t goto,               $28
 def_20t goto_16,            $29
 def_30t goto_32,            $2A
 
-; const_string carries its text the way smali writes it.  The
-; string has to be in the pool already, so this finds it rather
-; than adding it.
+; const_string carries its text the way smali writes it.
 macro const_string? a?*, text?*&
-    if __code_phase
-        _lookup_string __resolved_string, text, lengthof text
-        __fmt_21c $1A, a, __resolved_string
-    else
-        if __sphase = $01
-            _intern __str, add, text, lengthof text
-        end if
-        __fmt_21c $1A, a, $00
-    end if
+    _intern __str, add, text, lengthof text
+    repeat 1 e:__str_found
+        __fmt_21c $1A, a, __srank_#e
+    end repeat
 end macro
 
 macro new_instance? a?*, descriptor?*&
-    if __code_phase
-        _resolve_type descriptor
-        __fmt_21c $22, a, __resolved_type
-    else
-        _use_type descriptor, lengthof descriptor
-        __fmt_21c $22, a, $00
-    end if
+    _ref_type descriptor
+    __fmt_21c $22, a, __resolved_type
 end macro
 
 ; A cast is an instruction rather than a note to the compiler: the
@@ -287,39 +256,24 @@ end macro
 ; Object stays Object until this says otherwise.  It is what every
 ; getSystemService call needs before the result can be used.
 macro check_cast? a?*, descriptor?*&
-    if __code_phase
-        _resolve_type descriptor
-        __fmt_21c $1F, a, __resolved_type
-    else
-        _use_type descriptor, lengthof descriptor
-        __fmt_21c $1F, a, $00
-    end if
+    _ref_type descriptor
+    __fmt_21c $1F, a, __resolved_type
 end macro
 
 ; const-class names a type the way new-instance does, but leaves the
 ; Class object itself in the register — which is how an Intent is
 ; told which activity to start.
 macro const_class? a?*, descriptor?*&
-    if __code_phase
-        _resolve_type descriptor
-        __fmt_21c $1C, a, __resolved_type
-    else
-        _use_type descriptor, lengthof descriptor
-        __fmt_21c $1C, a, $00
-    end if
+    _ref_type descriptor
+    __fmt_21c $1C, a, __resolved_type
 end macro
 
 ; new-array names its element type the way new-instance names a
 ; class, and takes the length from a register.  The descriptor is
 ; the array's own, so an int[] is "[I".
 macro new_array? a?*, b?*, descriptor?*&
-    if __code_phase
-        _resolve_type descriptor
-        __fmt_22c $23, a, b, __resolved_type
-    else
-        _use_type descriptor, lengthof descriptor
-        __fmt_22c $23, a, b, $00
-    end if
+    _ref_type descriptor
+    __fmt_22c $23, a, b, __resolved_type
 end macro
 
 def_21c_ref sget_object,    $62
@@ -466,15 +420,9 @@ def_22b          ushr_int_lit8,          $E2
 ; The invokes name the method outright, as smali writes them.
 macro def_35c_ref? name?*, op?*
     macro name? ref?*, regs?&
-        if __code_phase
-            _ref_pair ref
-            _resolve_method __rf_v, __rf_l
-            __fmt_35c op, __ref_method, regs
-        else
-            _ref_pair ref
-            _use_method_ref __rf_v, __rf_l
-            __fmt_35c op, $00, regs
-        end if
+        _ref_pair ref
+        _ref_method __rf_v, __rf_l
+        __fmt_35c op, __ref_method, regs
     end macro
 end macro
 
@@ -491,15 +439,9 @@ def_35c_ref invoke_interface, $72
 ; which in turn decides where the body keeps those values.
 macro def_3rc_ref? name?*, op?*
     macro name? ref?*, first?*, last?*
-        if __code_phase
-            _ref_pair ref
-            _resolve_method __rf_v, __rf_l
-            __fmt_3rc op, __ref_method, first, last
-        else
-            _ref_pair ref
-            _use_method_ref __rf_v, __rf_l
-            __fmt_3rc op, $00, first, last
-        end if
+        _ref_pair ref
+        _ref_method __rf_v, __rf_l
+        __fmt_3rc op, __ref_method, first, last
     end macro
 end macro
 

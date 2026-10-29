@@ -40,7 +40,7 @@ end repeat
 
 ; Branch instructions take a label, not a hand-counted offset.
 ; Dalvik measures a branch in 16-bit code units from the address
-; of the branch instruction itself, and dex_method assembles a
+; of the branch instruction itself, and method assembles a
 ; body into `virtual at $00`, so $ here is that address.
 ;
 ; Every branch format is fixed-width, so the body size does not
@@ -49,7 +49,7 @@ end repeat
 ; Registers touched by a method decide two header fields, so the
 ; format macros record what they see: __max_reg validates the
 ; declared registers_size, __max_outs supplies outs_size.  Both are
-; reset by dex_method and read by end dex_method.
+; reset by method and read by end method.
 
 __max_reg = -$01
 __max_outs = $00

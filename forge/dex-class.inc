@@ -223,21 +223,19 @@ macro defclass? descriptor?*, flags?*, super?*, ifaces?
     end repeat
     ;  Kept as types met, made ranks by _dex_settle, and written by
     ;  emit_class_defs once every class is known.
-    if __sphase = $01
-        _use_type descriptor, lengthof descriptor
-        __dc_cls = __type_found
-        _use_type super, lengthof super
-        repeat 1 k:__defclass_index
-            __dccls_#k = __dc_cls
-            __dcflags_#k = flags
-            __dcsup_#k = __type_found
-            match , ifaces
-                __dcif_#k = $00
-            else
-                __dcif_#k = ifaces
-            end match
-        end repeat
-    end if
+    _use_type descriptor, lengthof descriptor
+    __dc_cls = __type_found
+    _use_type super, lengthof super
+    repeat 1 k:__defclass_index
+        __dccls_#k = __dc_cls
+        __dcflags_#k = flags
+        __dcsup_#k = __type_found
+        match , ifaces
+            __dcif_#k = $00
+        else
+            __dcif_#k = ifaces
+        end match
+    end repeat
     __defclass_index = __defclass_index + $01
 end macro
 
@@ -293,20 +291,14 @@ macro method? ref?*, flags?*, frame?*
     if __m_ins > __m_regs
         err 'method takes in more registers than the frame holds'
     end if
-    if __code_phase
-        _resolve_method_parts __m_v, __m_l
-        _intern_method __ref_class, __ref_name, __ref_proto
-        __m_k = __method_found
-    else if __sphase = $01
-        _use_method_ref __m_v, __m_l
-        __m_k = __method_found
-        repeat 1 k:__m_k
-            __mmember_#k = $01
-            __mflags_#k = flags
-            __mcode_#k = __code_#k
-            __mbody_#k = $01
-        end repeat
-    end if
+    _use_method_ref __m_v, __m_l
+    __m_k = __method_found
+    repeat 1 k:__m_k
+        __mmember_#k = $01
+        __mflags_#k = flags
+        __mcode_#k = __code_#k
+        __mbody_#k = $01
+    end repeat
     repeat $100 i:$00
         if defined p#i
             restore p#i
@@ -317,33 +309,24 @@ macro method? ref?*, flags?*, frame?*
     end repeat
     __max_reg = -$01
     __max_outs = $00
+    ;  The body goes into an area of its own, once, with its final
+    ;  indices; emit_code copies it out in method order.
     virtual at $00
-    if __code_phase
-        repeat 1 k:__m_k
-            __code_#k#_insns::
-        end repeat
-    else
-        repeat 1 c:__collect_seq
-            __collect_anchor_#c::
-        end repeat
-        __collect_seq = __collect_seq + $01
-    end if
+    repeat 1 k:__m_k
+        __code_#k#_insns::
+    end repeat
 end macro
 
 macro end?.method?
     end virtual
-    if __code_phase
-        if __max_reg >= __m_regs
-            err 'method uses a register at or above the frame size'
-        end if
-        ;  The body is assembled; the item around it is written by
-        ;  emit_code once every body has been met.
-        repeat 1 k:__m_k
-            __cregs_#k = __m_regs
-            __cins_#k  = __m_ins
-            __couts_#k = __max_outs
-        end repeat
+    if __max_reg >= __m_regs
+        err 'method uses a register at or above the frame size'
     end if
+    repeat 1 k:__m_k
+        __cregs_#k = __m_regs
+        __cins_#k  = __m_ins
+        __couts_#k = __max_outs
+    end repeat
 end macro
 
 macro emit_method_ids?
@@ -401,112 +384,12 @@ macro _shorty_of? retv?*, params?&
     end iterate
 end macro
 
-; ── Method code helper ───────────────────────────────────
-;
-;  The frame is written the way smali writes it: say how many
-;  locals the body needs and how many registers come in, and the
-;  total is worked out here.
-;
-;      dex_method _hello_oncreate_code, locals 4, ins 2
-;          invoke_super _act_oncr_m, p0, p1
-;          return_void
-;      end dex_method
-;
-;  Incoming arguments sit at the top of the frame, so their numbers
-;  depend on the total and shift whenever the body needs another
-;  local.  Refer to them as p0, p1 ... and that stops mattering;
-;  p0 is `this` for an instance method.  Locals stay v0, v1 ...
-;
-;  A total register count may still be given directly, in which
-;  case the caller works out where the arguments landed:
-;
-;      dex_method _hello_init_code, $01, ins 1
-;
-;  outs_size is derived from the widest invoke in the body, and a
-;  register at or above the total is an error.
-;
-;  Branch targets are labels, not offsets.  A local label attaches
-;  to the method it sits in, so each method has its own namespace
-;  and two methods may both use .loop:
-;
-;      dex_method _hello_run_code, locals 2, ins 0
-;      .loop:
-;          add_int_lit8 v0, v0, -1
-;          if_eqz       v0, .done
-;          goto         .loop
-;      .done:
-;          return_void
-;      end dex_method
-
-macro dex_method? _name?*, _frame?*, _ins?*
-    __dex_method_name equ _name
-    match =ins n, _ins
-        __dex_method_ins = n
-    else
-        __dex_method_ins = _ins
-    end match
-    match =locals n, _frame
-        __dex_method_regs = n + __dex_method_ins
-    else
-        __dex_method_regs = _frame
-    end match
-    if __dex_method_ins > __dex_method_regs
-        err 'method takes in more registers than the frame holds'
-    end if
-    ; Drop the previous method's argument names first, so that
-    ; naming an argument this method does not take is an undefined
-    ; symbol rather than a leftover number.
-    repeat $100 i:$00
-        if defined p#i
-            restore p#i
-        end if
-    end repeat
-    repeat __dex_method_ins i:$00
-        p#i = __dex_method_regs - __dex_method_ins + i
-    end repeat
-    __max_reg = -$01
-    __max_outs = $00
-    virtual at $00
-    if __code_phase
-        _name#_insns::
-    else
-        ; A throwaway anchor, so that local labels in the body have
-        ; something of their own to hang on during the extra passes
-        ; the collect phase makes over the code.
-        repeat 1 c:__collect_seq
-            __collect_anchor_#c::
-        end repeat
-        __collect_seq = __collect_seq + $01
-    end if
-end macro
-
-macro end?.dex_method?
-    end virtual
-    if __code_phase
-        if __max_reg >= __dex_method_regs
-            err 'method uses a register at or above registers_size'
-        end if
-        match name, __dex_method_name
-            name code_item __dex_method_regs, __dex_method_ins, __max_outs, $00, $00, $FFFF, name#_insns
-        end match
-    end if
-    restore __dex_method_name
-    align $04
-end macro
-
-__collect_seq = $00
-
-; The code is handed to emit_string_ids as one more list so that the
-; literals and descriptors written into it reach the pool, and then
-; assembled here for real.
 ; The items come out in method order, not in the order the bodies
 ; were met, so that moving a method in the source moves nothing in
-; the file.  The bodies are already assembled, each in an area of its
-; own and independent of where it lands, so this is only copying.
+; the file.  The bodies were assembled while the lists were
+; collected, each in an area of its own and independent of where it
+; lands, so this is only copying.
 macro emit_code?
-    __code_phase = $01
-    _walk_lists
-    __code_phase = $00
     repeat __method_n r:$00
         repeat 1 k:__mord_#r
             if __mbody_#k

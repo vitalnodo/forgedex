@@ -18,9 +18,8 @@
 ;    • cutting a reference apart — where the arrow is, where the
 ;      parentheses are, where one descriptor ends and the next
 ;      begins;
-;    • what each kind of reference contributes, which differs by
-;      phase: during collection it feeds the pools, and afterwards it
-;      answers with indices.
+;    • what each kind of reference contributes: it feeds the pools,
+;      and is answered with the rank what it named will have.
 ;
 ;  Most of the scanning is CALM rather than macros.  That is not
 ;  style: the string comparison alone was measured at fourteen times
@@ -80,11 +79,46 @@ macro _lookup_type? result?*, sidx?*
     end if
 end macro
 
-; Resolve a descriptor to its type index in __resolved_type.
-macro _resolve_type? descriptor?*&
-    _chk_descriptor descriptor, lengthof descriptor
-    _lookup_string __resolved_string, descriptor, lengthof descriptor
-    _lookup_type __resolved_type, __resolved_string
+; ── Answering with a rank ─────────────────────────────────
+;
+;  An instruction interns what it names, the way a declaration does,
+;  and is answered with the rank of what it interned.  The rank is
+;  only set once everything is in, by _dex_settle, later in the same
+;  pass — and that is fine: fasmg takes a symbol defined further on
+;  from the pass before, and runs another when it has to.  So the
+;  code is assembled once, while the lists are collected, and with
+;  its final indices.
+
+; A type, answered in __resolved_type.
+macro _ref_type? descriptor?*&
+    _use_type descriptor, lengthof descriptor
+    repeat 1 t:__type_found
+        __resolved_type = __trank_#t
+    end repeat
+end macro
+
+; A method, answered in __ref_method.
+macro _ref_method? ref?*, n?*
+    _use_method_ref ref, n
+    repeat 1 k:__method_found
+        __ref_method = __mrank_#k
+    end repeat
+end macro
+
+; A field, answered in __ref_field.  A field is only declared, never
+; added by being named, and it may be declared after the code that
+; names it — so a reference is kept by its parts, and _dex_settle
+; matches it to a declared field once all are in.  -1 is no match,
+; and the error is here, where the reference is.
+macro _ref_field? ref?*, n?*
+    _use_field_ref_types ref, n
+    _intern __fref, add, (__uf_cls shl $40) or (__uf_nm shl $20) or __uf_ty
+    repeat 1 r:__fref_found
+        if __frefrank_#r < $00
+            err 'no field is declared with this reference'
+        end if
+        __ref_field = __frefrank_#r
+    end repeat
 end macro
 
 ; ── Resolving a method reference ──────────────────────────
@@ -154,22 +188,6 @@ calminstruction _desc_end? result*, v*, l*, at*
     publish sym, i
 end calminstruction
 
-macro _lookup_proto? result?*, ret?*, n?*
-    _proto_key ret, n
-    _find_ranked result, __proto, __prank_, __pk
-    if result < $00
-        err 'no prototype is declared with this signature'
-    end if
-end macro
-
-macro _lookup_method? result?*, cls?*, nm?*, proto?*
-    _find_ranked result, __method, __mrank_, \
-        ((cls) shl $40) or ((nm) shl $20) or (proto)
-    if result < $00
-        err 'no method is declared with this reference'
-    end if
-end macro
-
 ; Split a reference into __ref_arrow, __ref_open and __ref_close, the
 ; way _split_field_ref does for a field.
 macro _split_method_ref? ref?*, n?*
@@ -179,15 +197,6 @@ macro _split_method_ref? ref?*, n?*
     if (__ref_arrow < $00) | (__ref_open < $00) | (__ref_close < $00)
         err 'a method reference reads Lclass;->name(parameters)return'
     end if
-end macro
-
-; The descriptor between from and to, as a type index.  A reference
-; is nothing but a handful of these read out of one string.
-macro _type_at? result?*, ref?*, n?*, from?*, to?*
-    _slice __ref_v, __ref_l, ref, n, from, to
-    _chk_descriptor __ref_v, __ref_l
-    _lookup_string __ref_s, __ref_v, __ref_l
-    _lookup_type result, __ref_s
 end macro
 
 ; Walk the descriptors packed between from and to, handing each to a
@@ -299,60 +308,24 @@ end macro
 ; come once everything is in, in _dex_settle, and _intern_method
 ; answers in __method_found which method this was.
 macro _use_method_ref? ref?*, n?*
-    if __sphase = $01
-        _split_method_ref ref, n
-        _slice __ref_v, __ref_l, ref, n, $00, __ref_arrow
-        _use_type __ref_v, __ref_l
-        __um_cls = __type_found
-        _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_open
-        _intern __str, add, __ref_v, __ref_l
-        __um_nm = __str_found
-        _ref_signature ref, n
-        _use_type __ref_rv, __ref_rl
-        __um_ret = __type_found
-        repeat __ref_n j:$00
-            _use_type __ref_pv_#j, __ref_pl_#j
-            __ref_p_#j = __type_found
-        end repeat
-        _ref_shorty
-        _intern __str, add, __shortyv, __shortyl
-        _intern_proto __um_ret, __ref_n, __str_found
-        _intern_method __um_cls, __um_nm, __proto_found
-    end if
-end macro
-
-; Resolve a reference into its class, name and prototype.
-; One parameter of a reference being resolved: its type index, kept
-; where _lookup_proto expects to find it.
-macro _rmp_param? v?*, l?*
-    _chk_descriptor v, l
-    _lookup_string __ref_s, v, l
-    _lookup_type __ref_t, __ref_s
-    repeat 1 j:__ref_n
-        __ref_p_#j = __ref_t
-    end repeat
-    __ref_n = __ref_n + $01
-end macro
-
-macro _resolve_method_parts? ref?*, n?*
     _split_method_ref ref, n
-
-    _type_at __ref_class, ref, n, $00, __ref_arrow
-
+    _slice __ref_v, __ref_l, ref, n, $00, __ref_arrow
+    _use_type __ref_v, __ref_l
+    __um_cls = __type_found
     _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_open
-    _lookup_string __ref_name, __ref_v, __ref_l
-
-    _type_at __ref_ret, ref, n, __ref_close + $01, n
-
-    __ref_n = $00
-    _walk_descs ref, n, __ref_open + $01, __ref_close, _rmp_param
-
-    _lookup_proto __ref_proto, __ref_ret, __ref_n
-end macro
-
-macro _resolve_method? ref?*, n?*
-    _resolve_method_parts ref, n
-    _lookup_method __ref_method, __ref_class, __ref_name, __ref_proto
+    _intern __str, add, __ref_v, __ref_l
+    __um_nm = __str_found
+    _ref_signature ref, n
+    _use_type __ref_rv, __ref_rl
+    __um_ret = __type_found
+    repeat __ref_n j:$00
+        _use_type __ref_pv_#j, __ref_pl_#j
+        __ref_p_#j = __type_found
+    end repeat
+    _ref_shorty
+    _intern __str, add, __shortyv, __shortyl
+    _intern_proto __um_ret, __ref_n, __str_found
+    _intern_method __um_cls, __um_nm, __proto_found
 end macro
 
 ; ── Resolving a field reference ───────────────────────────
@@ -361,14 +334,6 @@ end macro
 ;
 ;  Split on -> and the colon after it, then the class, the name and
 ;  the type give the field.
-
-macro _lookup_field? result?*, cls?*, nm?*, type?*
-    _find_ranked result, __field, __frank_, \
-        ((cls) shl $40) or ((nm) shl $20) or (type)
-    if result < $00
-        err 'no field is declared with this reference'
-    end if
-end macro
 
 ; Split a reference into __ref_arrow and __ref_colon.
 macro _split_field_ref? ref?*, n?*
@@ -382,34 +347,18 @@ macro _split_field_ref? ref?*, n?*
     end if
 end macro
 
-; Resolve a reference into its class, name and type.
-macro _resolve_field_parts? ref?*, n?*
-    _split_field_ref ref, n
-    _type_at __ref_class, ref, n, $00, __ref_arrow
-    _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_colon
-    _lookup_string __ref_name, __ref_v, __ref_l
-    _type_at __ref_type, ref, n, __ref_colon + $01, n
-end macro
-
-macro _resolve_field? ref?*, n?*
-    _resolve_field_parts ref, n
-    _lookup_field __ref_field, __ref_class, __ref_name, __ref_type
-end macro
-
 ; What a field reference contributes while the file is collected:
 ; its class, name and type, in __uf_cls, __uf_nm and __uf_ty for
 ; deffield, which is the one that keeps them.
 macro _use_field_ref_types? ref?*, n?*
-    if __sphase = $01
-        _split_field_ref ref, n
-        _slice __ref_v, __ref_l, ref, n, $00, __ref_arrow
-        _use_type __ref_v, __ref_l
-        __uf_cls = __type_found
-        _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_colon
-        _intern __str, add, __ref_v, __ref_l
-        __uf_nm = __str_found
-        _slice __ref_v, __ref_l, ref, n, __ref_colon + $01, n
-        _use_type __ref_v, __ref_l
-        __uf_ty = __type_found
-    end if
+    _split_field_ref ref, n
+    _slice __ref_v, __ref_l, ref, n, $00, __ref_arrow
+    _use_type __ref_v, __ref_l
+    __uf_cls = __type_found
+    _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_colon
+    _intern __str, add, __ref_v, __ref_l
+    __uf_nm = __str_found
+    _slice __ref_v, __ref_l, ref, n, __ref_colon + $01, n
+    _use_type __ref_v, __ref_l
+    __uf_ty = __type_found
 end macro
