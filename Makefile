@@ -13,7 +13,7 @@ help:
 	@echo 'make <example>       one of them'
 	@echo 'make <example>-install'
 	@echo 'make <example>-uninstall'
-	@echo 'make check           build, then verify the dex checksums'
+	@echo 'make check           build, then verify dex, manifest and resource checksums'
 	@echo 'make clean           remove everything a build writes'
 	@echo
 	@echo 'examples: $(EXAMPLES)'
@@ -50,4 +50,4 @@ clean:
 	       examples/*/app.apk examples/*/lib examples/*/assets \
 	       examples/*/lib*.so examples/hello_adb/HelloWorld.apk \
 	       examples/*/stub/*.so examples/*/resources.arsc \
-	       examples/*/AndroidManifest.axml examples/*/res/layout/*.xml
+	       examples/*/AndroidManifest.xml examples/*/res/layout/*.xml

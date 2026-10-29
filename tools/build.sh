@@ -99,7 +99,7 @@ fi
 
 # ── Build ─────────────────────────────────────────────────
 
-rm -rf classes.dex resources.arsc app.unsigned.apk app.apk lib assets "$NATIVE_LIB"
+rm -rf classes.dex AndroidManifest.xml resources.arsc app.unsigned.apk app.apk lib assets "$NATIVE_LIB"
 for layout in $LAYOUT_ASM; do rm -f "res/layout/$(basename "$layout" .asm).xml"; done
 
 #  Freestanding on purpose: the library reaches the outside world
@@ -144,14 +144,10 @@ fi
 
 "$FASMG" "$ASM" classes.dex
 
-#  The binary manifest has to enter the APK under the same name as
-#  the source, so it is written into a directory of its own rather
-#  than beside it.  That directory is private to this build: a
-#  fixed path under /tmp would collide when two examples build at
-#  once, as `make -j` does.
-axml=$(mktemp -d)
-trap 'rm -rf "$axml"' EXIT
-"$FASMG" "$MANIFEST" "$axml/AndroidManifest.xml"
+#  The binary manifest is written beside the dex, under the name it
+#  has inside the APK, so that `make check` can hash it like the
+#  dex.  The source is manifest.asm, so nothing is overwritten.
+"$FASMG" "$MANIFEST" AndroidManifest.xml
 
 if [ -n "$RES_ASM" ]; then
     "$FASMG" "$RES_ASM" resources.arsc
@@ -175,7 +171,7 @@ if [ -n "$RES_ASM" ]; then
     zip -jq0 app.unsigned.apk resources.arsc
 fi
 
-zip -jq app.unsigned.apk classes.dex "$axml/AndroidManifest.xml"
+zip -jq app.unsigned.apk classes.dex AndroidManifest.xml
 
 #  res/ keeps its paths — `zip -j` is there to throw them away, and
 #  the table refers to these files by path.

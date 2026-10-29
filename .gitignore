@@ -16,5 +16,5 @@ examples/*/stub/*.so
 
 # Assembled from the .asm beside them
 examples/*/resources.arsc
-examples/*/AndroidManifest.axml
+examples/*/AndroidManifest.xml
 examples/*/res/layout/*.xml
