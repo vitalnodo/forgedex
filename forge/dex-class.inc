@@ -252,6 +252,7 @@ macro method? ref?*, flags?*, frame?*
                 __mmember_#k = $01
                 __mflags_#k = flags
                 __mcode_#k = __code_#k
+                __mbody_#k = $01
             end repeat
         end if
     end if
@@ -284,10 +285,13 @@ macro end?.method?
         if __max_reg >= __m_regs
             err 'method uses a register at or above the frame size'
         end if
+        ;  The body is assembled; the item around it is written by
+        ;  emit_code once every body has been met.
         repeat 1 k:__m_k
-            __code_#k code_item __m_regs, __m_ins, __max_outs, $00, $00, $FFFF, __code_#k#_insns
+            __cregs_#k = __m_regs
+            __cins_#k  = __m_ins
+            __couts_#k = __max_outs
         end repeat
-        align $04
     end if
 end macro
 
@@ -453,8 +457,20 @@ __collect_seq = $00
 ; The code is handed to emit_string_ids as one more list so that the
 ; literals and descriptors written into it reach the pool, and then
 ; assembled here for real.
+; The items come out in method order, not in the order the bodies
+; were met, so that moving a method in the source moves nothing in
+; the file.  The bodies are already assembled, each in an area of its
+; own and independent of where it lands, so this is only copying.
 macro emit_code?
     __code_phase = $01
     _walk_lists
     __code_phase = $00
+    repeat __method_n r:$00
+        repeat 1 k:__mord_#r
+            if __mbody_#k
+                __code_#k code_item __cregs_#k, __cins_#k, __couts_#k, $00, $00, $FFFF, __code_#k#_insns
+                align $04
+            end if
+        end repeat
+    end repeat
 end macro

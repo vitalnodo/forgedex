@@ -327,6 +327,7 @@ macro _intern_method? cls?*, nm?*, proto?*
             __mmember_#k = $00
             __mflags_#k = $00
             __mcode_#k = $00
+            __mbody_#k = $00
         end repeat
     end if
 end macro
