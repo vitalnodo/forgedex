@@ -106,47 +106,46 @@ _def_unsigned ulong,  $40, dq
 ;  the prefix it was given to a tail of its own; without the = the
 ;  tail would be read as a name local to this instruction.
 ;
-;  The scan stops at the first match rather than running to the
-;  end.
+;  Nothing is scanned.  fasmg's own symbol table is a hash table, so
+;  a value is found by a symbol named after it — pool_k_ with the
+;  length and the value written out in digits — holding its index:
+;  `definite` says whether this pass has set it yet.  Scanning was
+;  quadratic in the size of the pool, a fifth of the time of the
+;  largest example, and forty seconds for three thousand strings.
 
 calminstruction _intern? pool*, miss*, value*, len, payload
-    local e, n, sym, v, val, ln, found
+    local n, sym, key, v, val, num, ln, found
     ;  Evaluate the arguments once.  publish keeps what it is given
     ;  rather than what that meant at the time, so handing it a
     ;  variable the caller goes on to reassign — the shorty being
     ;  built for each prototype in turn — would leave every entry
     ;  tracking the last one.
     compute val, value
+    ;  A string is a value too, its bytes read as one number, and the
+    ;  number is what the key is written with.
+    compute num, +val
+    check num >= 0
+    jyes named
+    err 'a pool holds no negative value'
+  named:
     match , len
-    jyes counted
+    jyes unmeasured
     compute ln, len
-  counted:
-    arrange sym, pool#=_n
-    compute n, sym
-    compute e, 0
-    compute found, -1
-  scan:
-    check e < n
+    arrange key, pool#=_k_#ln#=_#num
+    jump keyed
+  unmeasured:
+    arrange key, pool#=_k_#num
+  keyed:
+    check definite key
     jno missed
-    match , len
-    jyes same_length
-    arrange sym, pool#=_l_#e
-    compute v, sym
-    check v = ln
-    jno step
-  same_length:
-    arrange sym, pool#=_v_#e
-    compute v, sym
-    check v = val
-    jno step
-    compute found, e
+    compute found, key
     jump done
-  step:
-    compute e, e + 1
-    jump scan
   missed:
+    compute found, -1
     match =add?, miss
     jno done
+    arrange sym, pool#=_n
+    compute n, sym
     arrange sym, pool#=_v_#n
     publish sym, val
     match , len
@@ -160,6 +159,7 @@ calminstruction _intern? pool*, miss*, value*, len, payload
     arrange sym, pool#=_i_#n
     publish sym, v
   no_payload:
+    publish key, n
     compute found, n
     compute n, n + 1
     arrange sym, pool#=_n
@@ -172,68 +172,168 @@ end calminstruction
 ; ── Ordering ──────────────────────────────────────────────
 
 ; One sort for every pool — the dex's, strings among them, and the
-; attributes of an AXML element: binary insertion over
+; attributes of an AXML element: over
 ; entries 0 to n-1, leaving the entry at position r in ord#r and the
 ; position of entry e in rank#e.  `less result, keys, x, y` answers
 ; whether entry x of the pool named by keys goes before entry y;
-; it is the only part that knows what an entry is.  Insertion keeps
-; the comparisons to a binary search per entry, and pays for it in
-; plain integer moves.
-;
-; fasmg's # joins tokens rather than values, so reaching an entry
-; through a computed index means turning that value into a repeat
-; counter first, hence the repeat 1s.
+; it is the only part that knows what an entry is.  It is a merge
+; sort, bottom up, so the comparisons and the moves are both
+; n log n.
 ;
 ; Neighbours that are not strictly in order are two equal entries,
-; or a slip in the insertion, and either way the error is `what`.
+; or a slip in the sort, and either way the error is `what`.
 ; Two equal keys would take one position between them and leave
 ; another unfilled, which surfaces as a missing symbol well away
 ; from the cause, so they are caught here.
+;
+; The sort itself is a CALM instruction: the moves are the square of
+; the pool, and as macro repeats they were most of the time three
+; thousand strings took.  CALM calls an instruction only by its own
+; name, not one handed in, so there is one for each `less`, made by
+; _def_order below, and this picks it by name.
 macro _order? keys?*, less?*, rank?*, ord?*, n?*, what?*
-    __order_m = $00
-    repeat n i:$00
-        __order_lo = $00
-        __order_hi = __order_m
-        while __order_lo < __order_hi
-            __order_mid = (__order_lo + __order_hi) / $02
-            repeat 1 mid:__order_mid
-                repeat 1 k:ord#mid
-                    less __order_lt, keys, k, i
-                end repeat
-            end repeat
-            if __order_lt
-                __order_lo = __order_mid + $01
-            else
-                __order_hi = __order_mid
-            end if
-        end while
-        __order_j = __order_m
-        while __order_j > __order_lo
-            repeat 1 a:__order_j, b:__order_j - $01
-                ord#a = ord#b
-            end repeat
-            __order_j = __order_j - $01
-        end while
-        repeat 1 a:__order_lo
-            ord#a = i
-        end repeat
-        __order_m = __order_m + $01
-    end repeat
-    if n > $01
-        repeat n - $01 r:$00, r1:$01
-            repeat 1 x:ord#r, y:ord#r1
-                less __order_lt, keys, x, y
-                if ~ __order_lt
-                    err what
-                end if
-            end repeat
-        end repeat
+    __order_by_#less keys, rank, ord, n
+    if __order_bad
+        err what
     end if
-    repeat n r:$00
-        repeat 1 e:ord#r
-            rank#e = r
-        end repeat
-    end repeat
+end macro
+
+macro _def_order? less?*
+    calminstruction __order_by_#less? keys*, rank*, ord*, n*
+        local cnt, i, j, k, lo, mid, hi, w, x, y, sym, lt, bad
+        compute cnt, n
+        ;  Every entry in its own place, then runs of 1, 2, 4 …
+        ;  merged pairwise through __order_t_, so that the moves are
+        ;  n log n rather than the square of n.
+        compute i, 0
+      start:
+        check i < cnt
+        jno widths
+        arrange sym, ord#i
+        publish sym, i
+        compute i, i + 1
+        jump start
+      widths:
+        compute w, 1
+      width:
+        check w < cnt
+        jno settled
+        compute lo, 0
+      run:
+        check lo < cnt
+        jno wider
+        compute mid, lo + w
+        check mid < cnt
+        jyes mid_ok
+        compute mid, cnt
+      mid_ok:
+        compute hi, lo + w + w
+        check hi < cnt
+        jyes hi_ok
+        compute hi, cnt
+      hi_ok:
+        compute i, lo
+        compute j, mid
+        compute k, lo
+      merge:
+        check i < mid
+        jno rest_right
+        check j < hi
+        jno rest_left
+        arrange sym, ord#i
+        compute x, sym
+        arrange sym, ord#j
+        compute y, sym
+        arrange sym, =__order_lt
+        call less, sym, keys, y, x
+        arrange sym, =__order_lt
+        compute lt, sym
+        check lt
+        jyes take_right
+        arrange sym, =__order_t_#k
+        publish sym, x
+        compute i, i + 1
+        compute k, k + 1
+        jump merge
+      take_right:
+        arrange sym, =__order_t_#k
+        publish sym, y
+        compute j, j + 1
+        compute k, k + 1
+        jump merge
+      rest_left:
+        check i < mid
+        jno copy
+        arrange sym, ord#i
+        compute x, sym
+        arrange sym, =__order_t_#k
+        publish sym, x
+        compute i, i + 1
+        compute k, k + 1
+        jump rest_left
+      rest_right:
+        check j < hi
+        jno copy
+        arrange sym, ord#j
+        compute y, sym
+        arrange sym, =__order_t_#k
+        publish sym, y
+        compute j, j + 1
+        compute k, k + 1
+        jump rest_right
+      copy:
+        compute k, lo
+      copy_one:
+        check k < hi
+        jno next_run
+        arrange sym, =__order_t_#k
+        compute x, sym
+        arrange sym, ord#k
+        publish sym, x
+        compute k, k + 1
+        jump copy_one
+      next_run:
+        compute lo, hi
+        jump run
+      wider:
+        compute w, w + w
+        jump width
+      settled:
+        compute bad, 0
+        compute j, 1
+      neighbours:
+        check j < cnt
+        jno ranks
+        compute k, j - 1
+        arrange sym, ord#k
+        compute x, sym
+        arrange sym, ord#j
+        compute y, sym
+        arrange sym, =__order_lt
+        call less, sym, keys, x, y
+        arrange sym, =__order_lt
+        compute lt, sym
+        check lt
+        jyes in_order
+        compute bad, 1
+      in_order:
+        compute j, j + 1
+        jump neighbours
+      ranks:
+        compute j, 0
+      rank_each:
+        check j < cnt
+        jno done
+        arrange sym, ord#j
+        compute k, sym
+        arrange sym, rank#k
+        publish sym, j
+        compute j, j + 1
+        jump rank_each
+      done:
+        arrange sym, =__order_bad
+        publish sym, bad
+    end calminstruction
 end macro
 
 ; _order's `less` for a pool of numeric keys, keys#0 onwards.
@@ -365,6 +465,9 @@ calminstruction _str_less? result*, pool*, x*, y*
   fin:
     publish result, r
 end calminstruction
+
+_def_order _key_less
+_def_order _str_less
 
 ; ── UTF-16 length ─────────────────────────────────────────
 ;

@@ -154,14 +154,52 @@ end struc
 
 ; ── Adler-32 (assembly-time) ──────────────────────────────
 
+; Up to 64 bytes, as one number with its first byte lowest, into
+; the running sums __adler_a and __adler_b.
+calminstruction _adler32_block? block*, count*
+    local blk, n, i, a, b, sym
+    compute blk, block
+    compute n, count
+    arrange sym, =__adler_a
+    compute a, sym
+    arrange sym, =__adler_b
+    compute b, sym
+    compute i, 0
+  byte:
+    check i < n
+    jno fold
+    compute a, (a + ((blk shr (i * 8)) and $FF)) mod $FFF1
+    compute b, (b + a) mod $FFF1
+    compute i, i + 1
+    jump byte
+  fold:
+    arrange sym, =__adler_a
+    publish sym, a
+    arrange sym, =__adler_b
+    publish sym, b
+end calminstruction
+
+; Read a block at a time rather than taking the payload apart byte
+; by byte: a byte out of a number the size of the file costs a shift
+; of the whole file, which made the checksum quadratic in its size.
 struc adler32? payload?*
-    local modulo?, a?, b?
-    modulo? := $FFF1
-    a? = $01
-    b? = $00
-    repeat (lengthof (payload)) i:$00
-        a? = (a? + ((payload shr (i*$08)) and $FF)) mod modulo
-        b? = (b? + a?) mod modulo
-    end repeat
-    . = (b shl $10) or a
+    local container?, size?, pos?, part?, block?
+    __adler_a = $01
+    __adler_b = $00
+    virtual at $00
+    container?::
+        db payload
+        size? = $
+    end virtual
+    pos? = $00
+    while pos < size
+        part? = size - pos
+        if part > $40
+            part? = $40
+        end if
+        load block? : part from container:pos
+        _adler32_block block, part
+        pos? = pos + part
+    end while
+    . = (__adler_b shl $10) or __adler_a
 end struc

@@ -72,8 +72,15 @@ macro _find_ranked? result?*, pool?*, rank?*, key?*, len?
     end if
 end macro
 
-macro _lookup_type? result?*, sidx?*
-    _find_ranked result, __type, __trank_, sidx
+; A type by its descriptor, once the pools are settled.  It is found
+; by the string it is, as it was added: the type pool's values are
+; ranks by then, but what an entry is found by does not move.
+macro _lookup_type? result?*, descriptor?*, len?*
+    _intern __str, find, descriptor, len
+    if __str_found < $00
+        err 'no string in the pool matches this text'
+    end if
+    _find_ranked result, __type, __trank_, __str_found
     if result < $00
         err 'no type is declared with this descriptor'
     end if

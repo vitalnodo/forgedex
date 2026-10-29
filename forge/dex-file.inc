@@ -80,6 +80,9 @@ macro dex_file? interfaces?
         dex_map_list
         dex_footer
     end postpone
+    postpone ?
+        _dex_checksums
+    end postpone
 end macro
 
 ; ── Sections ─────────────────────────────────────────────

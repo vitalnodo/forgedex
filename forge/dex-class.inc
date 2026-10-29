@@ -122,8 +122,7 @@ end macro
 
 struc defclassdata? k?*
     local nsf, nif, ndm, nvm
-    _lookup_string __cd_s, __clsv_#k, __clsl_#k
-    _lookup_type __cd_cls, __cd_s
+    _lookup_type __cd_cls, __clsv_#k, __clsl_#k
     _find_ranked __cd_init, __str, __srank_, "<init>", $06
     _find_ranked __cd_clinit, __str, __srank_, "<clinit>", $08
     _cd_count_fields  nsf, $01
@@ -250,8 +249,7 @@ struc deftypelist? types?*&
         label .
         _type_list n
         iterate t?, types
-            _lookup_string __dtl_s, t, lengthof t
-            _lookup_type __dtl_t, __dtl_s
+            _lookup_type __dtl_t, t, lengthof t
             _type_list_type __dtl_t
         end iterate
     else
