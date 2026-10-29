@@ -86,19 +86,20 @@ __axr_n = $00               ; attribute names
 __axo_n = $00               ; all other strings
 
 ; A string's place in the written pool is its rank, which is only
-; known once collecting is over: the attribute names by resource id,
-; then everything else in the order dex strings take.  So neither
-; the order attributes are written in nor the order elements come
-; in moves a string.  These two resolve a name to its final index,
-; once there is one.
+; known once the tree has been walked: the attribute names by
+; resource id, then everything else in the order dex strings take.
+; So neither the order attributes are written in nor the order
+; elements come in moves a string.  These two give a string its
+; final index while the tree is still being walked: the ranks, and
+; the count of attribute names the second pool sits behind, are set
+; after the walk, and fasmg takes a symbol defined further on from
+; the pass before.
 
 macro _ax_ires? value?*
     _intern __axo, add, value, lengthof value
-    if __ax_phase = $02
-        repeat 1, e:__axo_found
-            __ax_idx = __axr_n + __axo_r_#e
-        end repeat
-    end if
+    repeat 1, e:__axo_found
+        __ax_idx = __axr_total + __axo_r_#e
+    end repeat
 end macro
 
 macro _ax_ires_attr? name?*
@@ -111,22 +112,18 @@ macro _ax_ires_attr? name?*
         end repeat
     end if
     _intern __axr, add, name,, __ax_id
-    if __ax_phase = $02
-        repeat 1, e:__axr_found
-            __ax_idx = __axr_r_#e
-        end repeat
-    end if
+    repeat 1, e:__axr_found
+        __ax_idx = __axr_r_#e
+    end repeat
 end macro
 
-; ── The description, walked twice ─────────────────────────
+; ── The description, walked once ──────────────────────────
 ;
-;  Phase 1 interns strings and counts each element's attributes;
-;  phase 2 writes the chunks.  An element's attribute count has to
-;  be in its header, ahead of the attributes themselves, and both
-;  walks visit the same elements in the same order — so the count
-;  found in the first is the one used in the second.
+;  The tree is written as it is walked, into an area of its own,
+;  with every string already at its final index; axml_file copies it
+;  out behind the string pool, which can only be written once the
+;  walk has met every string.
 
-__ax_phase = $00
 __ax_elem  = $00            ; element ordinal, in visiting order
 __ax_depth = $00
 __axa_open = $00            ; an element's header is waiting for its attributes
@@ -140,45 +137,20 @@ macro _ax_open
 end macro
 
 macro element? name?*
-    if __ax_phase = $01
-        ;  The raw place in the second pool, not the final index:
-        ;  the first pool is still growing as attribute names are
-        ;  met, so the offset to add is only settled once the walk
-        ;  is over.
-        _intern __axo, add, name, lengthof name
-        ; remember which element is open at this depth, so that
-        ; attr_* knows whose count to raise
-        _ax_open
-        repeat 1, e:__ax_elem
-            __ax_attrs_#e = $00
-            __ax_name_#e = __axo_found
-            __ax_kids_#e = $00
-        end repeat
-        ;  The element holding this one has had its last attribute.
-        if __ax_depth > $00
-            repeat 1, d:(__ax_depth - $01)
-                repeat 1, p:__ax_stack_#d
-                    __ax_kids_#p = $01
-                end repeat
-            end repeat
-        end if
-        __ax_elem = __ax_elem + $01
-        __ax_depth = __ax_depth + $01
-    else if __ax_phase = $02
-        _ax_flush
-        _ax_open
-        repeat 1, e:__ax_elem
-            __axa_count = __ax_attrs_#e
-            repeat 1, k:__ax_name_#e
-                __axa_name = __axr_n + __axo_r_#k
-            end repeat
-        end repeat
-        __ax_elem = __ax_elem + $01
-        __ax_depth = __ax_depth + $01
-        __axa_open = $01
-        __axa_n = $00
-        __axa_style_at = -$01
-    end if
+    _ax_flush
+    _intern __axo, add, name, lengthof name
+    _ax_open
+    repeat 1, e:__ax_elem
+        __ax_name_#e = __axo_found
+    end repeat
+    repeat 1, k:__axo_found
+        __axa_name = __axr_total + __axo_r_#k
+    end repeat
+    __ax_elem = __ax_elem + $01
+    __ax_depth = __ax_depth + $01
+    __axa_open = $01
+    __axa_n = $00
+    __axa_style_at = -$01
 end macro
 
 ;  An element's header and its attributes are written together,
@@ -196,7 +168,6 @@ end macro
 macro _ax_flush
     if __axa_open
         __axa_open = $00
-        _ax_check_count
         _order __axa_k_, _key_less, __axa_r_, __axa_o_, __axa_n, \
             'an attribute is written twice in one element'
         __axa_style = $00
@@ -231,6 +202,11 @@ end macro
 ;  resource id, or for one without an id a number above every id,
 ;  so that it sorts after them and in the order it was written.
 macro _ax_attr? key?*, nsidx?*, nameidx?*, raw?*, type?*, data?*
+    ;  Once an element inside this one has started, this one's header
+    ;  and attributes are written, and there is no adding to them.
+    if __axa_open = $00
+        err 'an attribute has to come before the elements inside the one it belongs to'
+    end if
     repeat 1, i:__axa_n
         __axa_k_#i   = key
         __axa_ns_#i  = nsidx
@@ -242,52 +218,28 @@ macro _ax_attr? key?*, nsidx?*, nameidx?*, raw?*, type?*, data?*
     __axa_n = __axa_n + $01
 end macro
 
-;  The count both phases agree on is the one in the first; the
-;  second writes what it was given, so they are checked to match.
-macro _ax_check_count
-    if __axa_n <> __axa_count
-        err 'an element has a different number of attributes on the second walk'
-    end if
-end macro
-
 macro end?.element
-    if __ax_phase = $01
-        __ax_depth = __ax_depth - $01
-    else if __ax_phase = $02
-        _ax_flush
-        __ax_depth = __ax_depth - $01
-        repeat 1, d:__ax_depth
-            __ax_elem_tmp = __ax_stack_#d
-        end repeat
-        repeat 1, e:__ax_elem_tmp
-            repeat 1, k:__ax_name_#e
-                __ax_name_tmp = __axr_n + __axo_r_#k
-            end repeat
-        end repeat
-
-        ushort RES_XML_END_ELEMENT
-        ushort $10
-        uint   $18
-        uint   $01
-        uint   $FFFFFFFF
-        uint   $FFFFFFFF
-        uint   __ax_name_tmp
-    end if
-end macro
-
-; ── Attributes ────────────────────────────────────────────
-
-macro _ax_count
-    repeat 1, d:(__ax_depth - $01)
+    _ax_flush
+    __ax_depth = __ax_depth - $01
+    repeat 1, d:__ax_depth
         __ax_elem_tmp = __ax_stack_#d
     end repeat
     repeat 1, e:__ax_elem_tmp
-        if __ax_kids_#e
-            err 'an attribute has to come before the elements inside the one it belongs to'
-        end if
-        __ax_attrs_#e = __ax_attrs_#e + $01
+        repeat 1, k:__ax_name_#e
+            __ax_name_tmp = __axr_total + __axo_r_#k
+        end repeat
     end repeat
+
+    ushort RES_XML_END_ELEMENT
+    ushort $10
+    uint   $18
+    uint   $01
+    uint   $FFFFFFFF
+    uint   $FFFFFFFF
+    uint   __ax_name_tmp
 end macro
+
+; ── Attributes ────────────────────────────────────────────
 
 ;  ns, name, rawValue, then the value itself.
 macro _ax_emit? nsidx?*, nameidx?*, raw?*, type?*, data?*
@@ -304,45 +256,28 @@ macro _ax_emit? nsidx?*, nameidx?*, raw?*, type?*, data?*
 end macro
 
 macro attr_str? name?*, value?*
-    if __ax_phase = $01
-        _ax_ires_attr name
-        _ax_ires value
-        _ax_count
-    else if __ax_phase = $02
-        _ax_ires_attr name
-        __ax_n_tmp = __ax_idx
-        _ax_ires value
-        __ax_v_tmp = __ax_idx
-        _ax_ires AXML_NS
-        _ax_attr __ax_id, __ax_idx, __ax_n_tmp, __ax_v_tmp, TYPE_STRING, __ax_v_tmp
-    end if
+    _ax_ires_attr name
+    __ax_n_tmp = __ax_idx
+    _ax_ires value
+    __ax_v_tmp = __ax_idx
+    _ax_ires AXML_NS
+    _ax_attr __ax_id, __ax_idx, __ax_n_tmp, __ax_v_tmp, TYPE_STRING, __ax_v_tmp
 end macro
 
 ;  package= on <manifest> is the one attribute with no namespace
 ;  and no resource id.
 macro attr_plain? name?*, value?*
-    if __ax_phase = $01
-        _ax_ires name
-        _ax_ires value
-        _ax_count
-    else if __ax_phase = $02
-        _ax_ires name
-        __ax_n_tmp = __ax_idx
-        _ax_ires value
-        _ax_attr ($01 shl $20) + __axa_n, $FFFFFFFF, __ax_n_tmp, __ax_idx, TYPE_STRING, __ax_idx
-    end if
+    _ax_ires name
+    __ax_n_tmp = __ax_idx
+    _ax_ires value
+    _ax_attr ($01 shl $20) + __axa_n, $FFFFFFFF, __ax_n_tmp, __ax_idx, TYPE_STRING, __ax_idx
 end macro
 
 macro _ax_typed? name?*, type?*, data?*
-    if __ax_phase = $01
-        _ax_ires_attr name
-        _ax_count
-    else if __ax_phase = $02
-        _ax_ires_attr name
-        __ax_n_tmp = __ax_idx
-        _ax_ires AXML_NS
-        _ax_attr __ax_id, __ax_idx, __ax_n_tmp, $FFFFFFFF, type, data
-    end if
+    _ax_ires_attr name
+    __ax_n_tmp = __ax_idx
+    _ax_ires AXML_NS
+    _ax_attr __ax_id, __ax_idx, __ax_n_tmp, $FFFFFFFF, type, data
 end macro
 
 macro attr_int? name?*, value?*
@@ -398,14 +333,9 @@ end macro
 ;  style= is the odd one out: no android: prefix, and its value
 ;  points at an attribute of the theme rather than at a resource.
 macro attr_style? value?*
-    if __ax_phase = $01
-        _ax_ires "style"
-        _ax_count
-    else if __ax_phase = $02
-        _ax_ires "style"
-        __axa_style_at = __axa_n
-        _ax_attr ($01 shl $20) + __axa_n, $FFFFFFFF, __ax_idx, $FFFFFFFF, TYPE_ATTRIBUTE, value
-    end if
+    _ax_ires "style"
+    __axa_style_at = __axa_n
+    _ax_attr ($01 shl $20) + __axa_n, $FFFFFFFF, __ax_idx, $FFFFFFFF, TYPE_ATTRIBUTE, value
 end macro
 
 ; ── The file ──────────────────────────────────────────────
@@ -413,21 +343,25 @@ end macro
 macro axml_file? body?*
     local i
 
-    ;  Phase one: intern, and count.  The namespace strings are
-    ;  interned first so that the declaration can be written
-    ;  before the tree.
-    __ax_phase = $01
+    ;  The tree, walked once into an area of its own, with the
+    ;  namespace strings interned first.
     __ax_elem = $00
     __ax_depth = $00
+    __axa_open = $00
     _ax_ires "android"
     _ax_ires AXML_NS
-    body
+    virtual at $00
+    __ax_tree::
+        body
+        _ax_flush
+        __ax_tree_size = $
+    end virtual
 
     _order __axr_i_, _key_less, __axr_r_, __axr_o_, __axr_n, \
         'two attribute names have one resource id'
     _order __axo, _str_less, __axo_r_, __axo_o_, __axo_n, \
         'string pool came out unsorted'
-    __ax_phase = $02
+    __axr_total = __axr_n
 
     _ax_ires "android"
     __ax_prefix = __ax_idx
@@ -498,10 +432,11 @@ macro axml_file? body?*
     uint   __ax_nsidx
   startns_end:
 
-    __ax_phase = $02
-    __ax_elem = $00
-    __ax_depth = $00
-    body
+    ;  The tree, as it was written while it was walked.
+    if __ax_tree_size
+        load __ax_tree_bytes : __ax_tree_size from __ax_tree : $00
+        emit __ax_tree_size : __ax_tree_bytes
+    end if
 
     chunk endns, RES_XML_END_NS
     uint   $01
@@ -512,7 +447,6 @@ macro axml_file? body?*
   endns_end:
 
   axml_end:
-    __ax_phase = $00
 end macro
 
 ; ── Framework attribute ids ───────────────────────────────
