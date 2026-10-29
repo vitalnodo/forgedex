@@ -1,7 +1,7 @@
 EXAMPLES = hello_gui counter_plus_minus fizzbuzz canvas fetch raycaster \
            hello_jni dtmf nativewin shaders themes
 
-.PHONY: help all deps check clean $(EXAMPLES)
+.PHONY: help all deps check verify clean $(EXAMPLES)
 
 #  Bare `make` says what there is rather than building eleven APKs,
 #  which is not what anyone wants from a repository they just cloned.
@@ -14,6 +14,7 @@ help:
 	@echo 'make <example>-install'
 	@echo 'make <example>-uninstall'
 	@echo 'make check           build, then verify dex, manifest and resource checksums'
+	@echo 'make verify          check, then read every output back (needs python3)'
 	@echo 'make clean           remove everything a build writes'
 	@echo
 	@echo 'examples: $(EXAMPLES)'
@@ -40,6 +41,12 @@ $(EXAMPLES):
 
 check: all
 	sha256sum -c checksums.sha256
+
+#  What the checksums cannot say: tools/verify.py reads each output
+#  the way a reader would, and reorders the sources to see that the
+#  order they were written in does not reach the file.
+verify: check
+	python3 tools/verify.py
 
 #  Everything a build writes, including the pieces assembled from
 #  the .asm beside them and the stubs linked against but never

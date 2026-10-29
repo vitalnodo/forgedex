@@ -85,8 +85,14 @@ make all                      # every example
 make raycaster                # one of them
 make raycaster-install        # build, install and launch over adb
 make raycaster-uninstall
-make check                    # build, then verify the dex checksums
+make check                    # build, then verify dex, manifest and resource checksums
+make verify                   # check, then read every output as a reader would
 ```
+
+`make verify` needs Python 3, and nothing else beyond its standard library. It
+checks what the checksums cannot: that each dex and binary XML is well formed
+and sorted the way the platform wants, and that reordering fields, methods,
+lists or attributes in an example leaves its output byte for byte the same.
 
 Or directly:
 
