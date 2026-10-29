@@ -98,58 +98,8 @@ macro _collect? pool?*, mode?*
     pool#_mode = $00
 end macro
 
-__snum   = $00              ; distinct strings in the pool
+__str_n  = $00              ; distinct strings in the pool
 __sphase = $00              ; 0 idle, 1 collect, 2 bind
-
-; Interning reaches entries by a computed index, which macros can
-; only do by turning the value into a repeat counter first, since #
-; joins tokens rather than values.  A CALM instruction builds the
-; name with arrange and then reads it with compute or writes it
-; with publish, which is what those are for.
-;
-; The scan stops at the first match rather than running to the end.
-
-calminstruction _intern? value*, len*
-    local e, n, sym, v, found, val, ln
-    ; Evaluate the arguments once.  publish keeps what it is given
-    ; rather than what that meant at the time, so handing it a
-    ; variable the caller goes on to reassign — the shorty being
-    ; built for each prototype in turn — would leave every entry
-    ; tracking the last one.
-    compute val, value
-    compute ln, len
-    compute n, __snum
-    compute e, 0
-    compute found, -1
-  scan:
-    check e < n
-    jno add
-    arrange sym, =__strl_#e
-    compute v, sym
-    check v = ln
-    jno step
-    arrange sym, =__strv_#e
-    compute v, sym
-    check v = val
-    jno step
-    compute found, e
-    jump done
-  step:
-    compute e, e + 1
-    jump scan
-  add:
-    arrange sym, =__strv_#n
-    publish sym, val
-    arrange sym, =__strl_#n
-    publish sym, ln
-    compute found, n
-    compute n, n + 1
-    arrange sym, =__snum
-    publish sym, n
-  done:
-    arrange sym, =__sfound
-    publish sym, found
-end calminstruction
 
 ; Sorting is by UTF-16 code point value, which is not MUTF-8 byte
 ; order: a supplementary character is encoded as a surrogate pair
@@ -265,7 +215,7 @@ macro _sort_strings? n?*
             __sort_mid = (__sort_lo + __sort_hi) / $02
             repeat 1 mid:__sort_mid
                 repeat 1 k:__ord_#mid
-                    _str_less __sort_lt, __strv_#k, __strl_#k, __strv_#i, __strl_#i
+                    _str_less __sort_lt, __str_v_#k, __str_l_#k, __str_v_#i, __str_l_#i
                 end repeat
             end repeat
             if __sort_lt
@@ -295,7 +245,7 @@ macro _sort_strings? n?*
         repeat n - $01 r:$00, r1:$01
             repeat 1 a:__ord_#r
                 repeat 1 b:__ord_#r1
-                    _str_less __sort_lt, __strv_#a, __strl_#a, __strv_#b, __strl_#b
+                    _str_less __sort_lt, __str_v_#a, __str_l_#a, __str_v_#b, __str_l_#b
                     if ~ __sort_lt
                         err 'string pool came out unsorted'
                     end if
@@ -311,9 +261,9 @@ end macro
 
 macro defstr? base?*, text?*&
     if __sphase = $01
-        _intern text, lengthof text
+        _intern __str, add, text, lengthof text
         repeat 1 k:__defstr_index
-            __dstr_slot_#k = __sfound
+            __dstr_slot_#k = __str_found
         end repeat
         __defstr_index = __defstr_index + $01
     else if __sphase = $02
@@ -328,7 +278,7 @@ end macro
 
 macro emit_string_ids?
     __emitting = $00
-    __snum = $00
+    __str_n = $00
     __sphase = $01
     __defstr_index = $00
     __defproto_index = $00
@@ -338,8 +288,8 @@ macro emit_string_ids?
         _walk_lists
     end virtual
 
-    _sort_strings __snum
-    repeat __snum r:$00
+    _sort_strings __str_n
+    repeat __str_n r:$00
         repeat 1 e:__ord_#r
             __srank_#e = r
         end repeat
@@ -361,7 +311,7 @@ macro emit_string_ids?
     __sphase = $00
     __emitting = $01
 
-    repeat __snum r:$00
+    repeat __str_n r:$00
         repeat 1 e:__ord_#r
             __sid_#e string_id_item __sdata_#e
         end repeat
@@ -370,9 +320,9 @@ end macro
 
 ; The pool is already built, so this needs no list.
 macro emit_string_data?
-    repeat __snum r:$00
+    repeat __str_n r:$00
         repeat 1 e:__ord_#r
-            __sdata_#e defstring __strv_#e, __strl_#e
+            __sdata_#e defstring __str_v_#e, __str_l_#e
         end repeat
     end repeat
 end macro

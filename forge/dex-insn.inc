@@ -266,7 +266,7 @@ macro const_string? a?*, text?*&
         __fmt_21c $1A, a, __resolved_string
     else
         if __sphase = $01
-            _intern text, lengthof text
+            _intern __str, add, text, lengthof text
         end if
         __fmt_21c $1A, a, $00
     end if

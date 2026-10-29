@@ -72,47 +72,8 @@ AXML_NS? := "http://schemas.android.com/apk/res/android"
 __axt_n = $00
 
 macro defattr? name?*, id?*
-    _ax_table_add name, id
+    _intern __axt, add, name,, id
 end macro
-
-calminstruction _ax_table_add? name*, id*
-    local n, sym, v
-    compute v, name
-    compute n, __axt_n
-    arrange sym, =__axt_v_#n
-    publish sym, v
-    compute v, id
-    arrange sym, =__axt_i_#n
-    publish sym, v
-    compute n, n + 1
-    arrange sym, =__axt_n
-    publish sym, n
-end calminstruction
-
-; Answers into __ax_id, or -1 when the name is not in the table.
-calminstruction _ax_table_find? name*
-    local e, n, sym, v, val, found
-    compute val, name
-    compute n, __axt_n
-    compute e, 0
-    compute found, -1
-  scan:
-    check e < n
-    jno done
-    arrange sym, =__axt_v_#e
-    compute v, sym
-    check v = val
-    jno step
-    arrange sym, =__axt_i_#e
-    compute found, sym
-    jump done
-  step:
-    compute e, e + 1
-    jump scan
-  done:
-    arrange sym, =__ax_id
-    publish sym, found
-end calminstruction
 
 ; ── The two string pools ──────────────────────────────────
 ;
@@ -124,82 +85,23 @@ end calminstruction
 __axr_n = $00               ; attribute names
 __axo_n = $00               ; all other strings
 
-calminstruction _ax_res? name*, id*
-    local e, n, sym, v, val, found
-    compute val, name
-    compute n, __axr_n
-    compute e, 0
-    compute found, -1
-  scan:
-    check e < n
-    jno add
-    arrange sym, =__axr_v_#e
-    compute v, sym
-    check v = val
-    jno step
-    compute found, e
-    jump done
-  step:
-    compute e, e + 1
-    jump scan
-  add:
-    arrange sym, =__axr_v_#n
-    publish sym, val
-    compute v, id
-    arrange sym, =__axr_i_#n
-    publish sym, v
-    compute found, n
-    compute n, n + 1
-    arrange sym, =__axr_n
-    publish sym, n
-  done:
-    arrange sym, =__ax_found
-    publish sym, found
-end calminstruction
-
-calminstruction _ax_str? value*
-    local e, n, sym, v, val, found
-    compute val, value
-    compute n, __axo_n
-    compute e, 0
-    compute found, -1
-  scan:
-    check e < n
-    jno add
-    arrange sym, =__axo_v_#e
-    compute v, sym
-    check v = val
-    jno step
-    compute found, e
-    jump done
-  step:
-    compute e, e + 1
-    jump scan
-  add:
-    arrange sym, =__axo_v_#n
-    publish sym, val
-    compute found, n
-    compute n, n + 1
-    arrange sym, =__axo_n
-    publish sym, n
-  done:
-    arrange sym, =__ax_found
-    publish sym, found
-end calminstruction
-
 ; An "other" string's place in the written pool is behind all the
 ; attribute names, so its index is only known once collecting is
 ; over.  These two resolve a name to its final index.
 
 macro _ax_ires? value?*
-    _ax_str value
-    __ax_idx = __axr_n + __ax_found
+    _intern __axo, add, value
+    __ax_idx = __axr_n + __axo_found
 end macro
 
 macro _ax_ires_attr? name?*
-    _ax_table_find name
-    if __ax_id = -1
+    _intern __axt, find, name
+    if __axt_found = -1
         err 'unknown android attribute: ', name, ' — add it to the table in forgeaxml.inc'
+    else
+        repeat 1, k:__axt_found
+            __ax_id = __axt_i_#k
+        end repeat
     end if
     ;  Ascending resource id, within an element, is not a matter of
     ;  taste.  The platform resolves an element's attributes with a
@@ -211,8 +113,8 @@ macro _ax_ires_attr? name?*
         err 'attribute out of order: ', name, ' must come before the one written above it'
     end if
     __ax_last_id = __ax_id
-    _ax_res name, __ax_id
-    __ax_idx = __ax_found
+    _intern __axr, add, name,, __ax_id
+    __ax_idx = __axr_found
 end macro
 
 ; ── The description, walked twice ─────────────────────────
@@ -245,13 +147,13 @@ macro element? name?*
         ;  the first pool is still growing as attribute names are
         ;  met, so the offset to add is only settled once the walk
         ;  is over.
-        _ax_str name
+        _intern __axo, add, name
         ; remember which element is open at this depth, so that
         ; attr_* knows whose count to raise
         _ax_open
         repeat 1, e:__ax_elem
             __ax_attrs_#e = $00
-            __ax_name_#e = __ax_found
+            __ax_name_#e = __axo_found
         end repeat
         __ax_elem = __ax_elem + $01
         __ax_depth = __ax_depth + $01

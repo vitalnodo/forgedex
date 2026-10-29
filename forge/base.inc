@@ -3,7 +3,9 @@
 ;
 ;  A dex, a resources.arsc and a binary AXML have almost nothing
 ;  in common, but all three are laid out by writing fields of a
-;  fixed width and aligning to a boundary.  That is all this is.
+;  fixed width and aligning to a boundary, and all three keep
+;  pools of values that are each written once.  That is all this
+;  is.
 ;
 ;  It is included by forgedex.inc, forgeres.inc and forgeaxml.inc
 ;  rather than by anything an example writes.  Before it existed,
@@ -80,6 +82,91 @@ _def_signed   int,    $20, dd
 _def_unsigned uint,   $20, dd
 _def_signed   long,   $40, dq
 _def_unsigned ulong,  $40, dq
+
+; ── Interning ─────────────────────────────────────────────
+;
+;  Every pool is a list of values under one prefix: pool_n of
+;  them, pool_v_0 onwards, with pool_l_#i beside each when the
+;  pool keeps lengths and pool_i_#i when it keeps a payload.  This
+;  finds a value and answers its index in pool_found.
+;
+;      miss      add: append it, and answer where it went
+;                find: answer -1 and leave the pool as it is
+;      len       compared as well as the value.  fasmg compares
+;                strings as numbers, so "a" and "a",0 are the same
+;                value, and only the length tells them apart.
+;      payload   stored beside a value that is added
+;
+;  An entry is reached by a computed index, which macros can only
+;  do by turning the value into a repeat counter first, since #
+;  joins tokens rather than values.  A CALM instruction builds the
+;  name with arrange and then reads it with compute or writes it
+;  with publish, which is what those are for.  `pool#=_n` joins
+;  the prefix it was given to a tail of its own; without the = the
+;  tail would be read as a name local to this instruction.
+;
+;  The scan stops at the first match rather than running to the
+;  end.
+
+calminstruction _intern? pool*, miss*, value*, len, payload
+    local e, n, sym, v, val, ln, found
+    ;  Evaluate the arguments once.  publish keeps what it is given
+    ;  rather than what that meant at the time, so handing it a
+    ;  variable the caller goes on to reassign — the shorty being
+    ;  built for each prototype in turn — would leave every entry
+    ;  tracking the last one.
+    compute val, value
+    match , len
+    jyes counted
+    compute ln, len
+  counted:
+    arrange sym, pool#=_n
+    compute n, sym
+    compute e, 0
+    compute found, -1
+  scan:
+    check e < n
+    jno missed
+    match , len
+    jyes same_length
+    arrange sym, pool#=_l_#e
+    compute v, sym
+    check v = ln
+    jno step
+  same_length:
+    arrange sym, pool#=_v_#e
+    compute v, sym
+    check v = val
+    jno step
+    compute found, e
+    jump done
+  step:
+    compute e, e + 1
+    jump scan
+  missed:
+    match =add?, miss
+    jno done
+    arrange sym, pool#=_v_#n
+    publish sym, val
+    match , len
+    jyes no_length
+    arrange sym, pool#=_l_#n
+    publish sym, ln
+  no_length:
+    match , payload
+    jyes no_payload
+    compute v, payload
+    arrange sym, pool#=_i_#n
+    publish sym, v
+  no_payload:
+    compute found, n
+    compute n, n + 1
+    arrange sym, pool#=_n
+    publish sym, n
+  done:
+    arrange sym, pool#=_found
+    publish sym, found
+end calminstruction
 
 ; ── Alignment ─────────────────────────────────────────────
 

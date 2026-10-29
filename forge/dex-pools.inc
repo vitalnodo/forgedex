@@ -76,40 +76,16 @@ macro _rank_pool? key?*, rank?*, ord?*, n?*, what?*
     end repeat
 end macro
 
-; A type is added to the pool the first time a reference names it.
-calminstruction _intern_type? sidx*
-    local k, n, sym, v, si
-    compute si, sidx
-    arrange sym, =__deftype_count
-    compute n, sym
-    compute k, 0
-  scan:
-    check k < n
-    jno add
-    arrange sym, =__tkey_#k
-    compute v, sym
-    check v = si
-    jyes done
-    compute k, k + 1
-    jump scan
-  add:
-    arrange sym, =__tkey_#n
-    publish sym, si
-    compute n, n + 1
-    arrange sym, =__deftype_count
-    publish sym, n
-  done:
-end calminstruction
-
 ; Contribute a descriptor: its text in the string phase, the type
-; it names in the type phase.
+; it names in the type phase.  A type joins the pool the first
+; time a reference names it.
 macro _use_type? v?*, l?*
     _chk_descriptor v, l
     if __sphase = $01
-        _intern v, l
+        _intern __str, add, v, l
     else if __deftype_mode = $02
         _lookup_string __ut_s, v, l
-        _intern_type __ut_s
+        _intern __type, add, __ut_s
     end if
 end macro
 
@@ -126,7 +102,7 @@ end macro
 ;  Sorted by the index of the descriptor string.
 
 __deftype_mode   = $00      ; 0 emit, 2 collect
-__deftype_count  = $00
+__type_n         = $00
 
 ; A type descriptor is a primitive letter, or L followed by a name
 ; and a semicolon, or any of those behind one or more [.  Nothing
@@ -194,16 +170,16 @@ end macro
 
 macro emit_type_ids?
     __emitting = $00
-    __deftype_count = $00
+    __type_n = $00
     _collect __deftype, $02
     __emitting = $01
-    _rank_pool __tkey_, __trank_, __tord_, __deftype_count, \
+    _rank_pool __type_v_, __trank_, __tord_, __type_n, \
         'two types name the same descriptor'
     ; Nothing declares a type by name any more, so the items are
     ; emitted straight from what was collected.
-    repeat __deftype_count r:$00
+    repeat __type_n r:$00
         repeat 1 t:__tord_#r
-            __tid_#t type_id_item __tkey_#t
+            __tid_#t type_id_item __type_v_#t
         end repeat
     end repeat
 end macro
@@ -364,7 +340,7 @@ macro defproto? base?*, return?*, params?
         end iterate
         if __sphase = $01
             _shorty_of return, params
-            _intern __shortyv, __shortyl
+            _intern __str, add, __shortyv, __shortyl
         end if
     else if __defproto_mode = $02
         _lookup_string __pt_s, return, lengthof return

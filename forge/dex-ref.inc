@@ -43,39 +43,19 @@
 ;  from the point of use would mean walking the method bodies
 ;  during the collect phase, which is a larger change.
 
-; The one scan of the string pool.  A miss answers -1; _lookup_string
-; below is this with the miss made fatal.
-calminstruction _find_string? result*, value*, len*
-    local e, n, sym, v, found, val, ln
-    compute val, value
-    compute ln, len
-    ; a bare global reads in this instruction's own namespace, so
-    ; name it the same way the entries are named
-    arrange sym, =__snum
-    compute n, sym
-    compute e, 0
-    compute found, -1
-  scan:
-    check e < n
-    jno done
-    arrange sym, =__strl_#e
-    compute v, sym
-    check v = ln
-    jno step
-    arrange sym, =__strv_#e
-    compute v, sym
-    check v = val
-    jno step
-    arrange sym, =__srank_#e
-    compute found, sym
-    jump done
-  step:
-    compute e, e + 1
-    jump scan
-  done:
-    arrange sym, result
-    publish sym, found
-end calminstruction
+; A string's rank, its place in the sorted pool rather than where it
+; was added; a miss answers -1.  _lookup_string below is this with the
+; miss made fatal.
+macro _find_string? result?*, value?*, len?*
+    _intern __str, find, value, len
+    if __str_found < $00
+        result = -1
+    else
+        repeat 1, e:__str_found
+            result = __srank_#e
+        end repeat
+    end if
+end macro
 
 ; The pools are settled by the time anything looks a string up, so a
 ; miss is a mistake rather than a new entry.
@@ -92,7 +72,7 @@ end macro
 ;  table of ranks beside it, and finding an entry is the same scan in
 ;  all three: walk the keys, answer the rank that sits at the same
 ;  index.  The tables differ only in their names, and a name is a
-;  token, so it can be an argument — `keys#=_#k` composes __tkey_3
+;  token, so it can be an argument — `keys#=_#k` composes __type_v_3
 ;  the same way the specialised versions used to spell it out.
 ;
 ;  A key is one integer even when it names three things: the callers
@@ -124,7 +104,7 @@ calminstruction _find_ranked? result*, keys*, ranks*, count*, key*
 end calminstruction
 
 macro _lookup_type? result?*, sidx?*
-    _find_ranked result, __tkey, __trank, __deftype_count, sidx
+    _find_ranked result, __type_v, __trank, __type_n, sidx
     if result < $00
         err 'no type is declared with this descriptor'
     end if
@@ -304,7 +284,7 @@ macro _use_method_ref_types? ref?*, n?*
     _use_type __ref_v, __ref_l
     if __sphase = $01
         _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_open
-        _intern __ref_v, __ref_l
+        _intern __str, add, __ref_v, __ref_l
     end if
     _slice __ref_v, __ref_l, ref, n, __ref_close + $01, n
     _use_type __ref_v, __ref_l
@@ -384,7 +364,7 @@ end macro
 macro _use_method_ref_shorty? ref?*, n?*
     _ref_signature ref, n
     _ref_shorty
-    _intern __shortyv, __shortyl
+    _intern __str, add, __shortyv, __shortyl
 end macro
 
 macro _use_method_ref_proto? ref?*, n?*
@@ -541,7 +521,7 @@ macro _use_field_ref_types? ref?*, n?*
     _use_type __ref_v, __ref_l
     if __sphase = $01
         _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_colon
-        _intern __ref_v, __ref_l
+        _intern __str, add, __ref_v, __ref_l
     end if
     _slice __ref_v, __ref_l, ref, n, __ref_colon + $01, n
     _use_type __ref_v, __ref_l
