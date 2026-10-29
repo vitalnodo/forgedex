@@ -451,16 +451,14 @@ macro axml_file? body?*
     _ax_ires AXML_NS
     __ax_nsidx = __ax_idx
 
-  axml_start:
-    ushort RES_XML
-    ushort $08
-    uint   (axml_end - axml_start)
+    ;  Every block here is a chunk as forgeres.inc writes one: the
+    ;  header size and the total size are distances between labels,
+    ;  so neither is a number to keep in step with the fields.
+    chunk axml, RES_XML
+  axml_header_end:
 
     ; ── string pool ───────────────────────────────────────
-  pool_start:
-    ushort RES_STRING_POOL
-    ushort $1C
-    uint   (pool_end - pool_start)
+    chunk pool, RES_STRING_POOL
     uint   (__axr_n + __axo_n)            ; stringCount
     uint   $00                            ; styleCount
     uint   UTF8_FLAG
@@ -495,36 +493,34 @@ macro axml_file? body?*
     ;
     ;  One id per attribute name, in the order the names were
     ;  interned, which is the order they sit in the pool.
-  map_start:
-    ushort RES_XML_RESOURCE_MAP
-    ushort $08
-    uint   (map_end - map_start)
+    chunk map, RES_XML_RESOURCE_MAP
+  map_header_end:
     repeat __axr_n, i:0
         uint __axr_i_#i
     end repeat
   map_end:
 
     ; ── the tree ──────────────────────────────────────────
-    ushort RES_XML_START_NS
-    ushort $10
-    uint   $18
-    uint   $01
-    uint   $FFFFFFFF
+    chunk startns, RES_XML_START_NS
+    uint   $01                            ; line number
+    uint   $FFFFFFFF                      ; comment: none
+  startns_header_end:
     uint   __ax_prefix
     uint   __ax_nsidx
+  startns_end:
 
     __ax_phase = $02
     __ax_elem = $00
     __ax_depth = $00
     body
 
-    ushort RES_XML_END_NS
-    ushort $10
-    uint   $18
+    chunk endns, RES_XML_END_NS
     uint   $01
     uint   $FFFFFFFF
+  endns_header_end:
     uint   __ax_prefix
     uint   __ax_nsidx
+  endns_end:
 
   axml_end:
     __ax_phase = $00
