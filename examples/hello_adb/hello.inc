@@ -139,7 +139,7 @@ struc sha1? payload?*
         h4? = ((h4 + e) and max32)
         chunk? = chunk + $40
     end while
-    . = ((h4) or (h3 shl $20) or (h2 shl $40) or (h1 shl $60) or (h0 shl $80))
+    . = ((h4) or (h3 shl $20) or (h2 shl $40) or (h1 shl $60) or (h0 shl $80)) bswap $14
 end struc
 
 struc adler32? payload?*

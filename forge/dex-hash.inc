@@ -88,7 +88,11 @@ struc sha1? payload?*
         h4? = ((h4 + e) and max32)
         chunk? = chunk + $40
     end while
-    . = ((h4) or (h3 shl $20) or (h2 shl $40) or (h1 shl $60) or (h0 shl $80))
+    ;  The digest is h0 first, each word big-endian, and a value is
+    ;  stored low byte first, so the number is turned round to come
+    ;  out as the digest reads.  Without it the signature was
+    ;  written backwards.
+    . = ((h4) or (h3 shl $20) or (h2 shl $40) or (h1 shl $60) or (h0 shl $80)) bswap $14
 end struc
 
 ; ── Adler-32 (assembly-time) ──────────────────────────────
