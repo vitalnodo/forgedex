@@ -90,6 +90,9 @@ _def_plain def_31i, <a?*, lit?*>          , <a, lit>        , __fmt_31i
 _def_plain def_22x, <a?*, b?*>            , <a, b>          , __fmt_22x
 _def_plain def_51l, <a?*, lit?*>          , <a, lit>        , __fmt_51l
 _def_plain def_35c, <method?*, regs?&>    , <method, regs>  , __fmt_35c
+_def_plain def_21s, <a?*, lit?*>          , <a, lit>        , __fmt_21s
+_def_plain def_22s, <a?*, b?*, lit?*>     , <a, b, lit>     , __fmt_22s
+_def_plain def_32x, <a?*, b?*>            , <a, b>          , __fmt_32x
 
 ; ── Wide-operand instructions ─────────────────────────────
 ;
@@ -149,11 +152,44 @@ macro def_23x_www? name?*, op?*
     end macro
 end macro
 
+macro def_23x_wnn? name?*, op?*
+    macro name? a?*, b?*, c?*
+        _use_reg_wide a, $08, 'wide register'
+        __fmt_23x op, a, b, c
+    end macro
+end macro
+
+macro def_23x_wwn? name?*, op?*
+    macro name? a?*, b?*, c?*
+        _use_reg_wide a, $08, 'wide register'
+        _use_reg_wide b, $08, 'wide register'
+        __fmt_23x op, a, b, c
+    end macro
+end macro
+
+macro def_32x_ww? name?*, op?*
+    macro name? a?*, b?*
+        _use_reg_wide a, $10, 'wide register'
+        _use_reg_wide b, $10, 'wide source register'
+        __fmt_32x op, a, b
+    end macro
+end macro
+
 macro def_23x_nww? name?*, op?*
     macro name? a?*, b?*, c?*
         _use_reg_wide b, $08, 'wide register'
         _use_reg_wide c, $08, 'wide register'
         __fmt_23x op, a, b, c
+    end macro
+end macro
+
+; A wide static field.
+macro def_21c_ref_w? name?*, op?*
+    macro name? a?*, ref?*&
+        _use_reg_wide a, $08, 'wide register'
+        _ref_pair ref
+        _ref_field __rf_v, __rf_l
+        __fmt_21c op, a, __ref_field
     end macro
 end macro
 
@@ -233,6 +269,32 @@ def_22x_ww move_wide_from16, $05
 
 def_31i const,              $14
 def_51l const_wide,         $18
+def_32x          move_16,                $03
+def_32x          move_object_16,         $09
+def_32x_ww       move_wide_16,           $06
+def_21s          const_16,               $13
+
+; The narrower constants, for a value that fits them.  A wide one
+; fills the pair, sign-extended from what is written.
+macro const_high16? a?*, lit?*
+    __fmt_21h $15, a, lit, $10
+end macro
+
+macro const_wide_16? a?*, lit?*
+    _use_reg_wide a, $08, 'wide register'
+    __fmt_21s $16, a, lit
+end macro
+
+macro const_wide_32? a?*, lit?*
+    _use_reg_wide a, $08, 'wide register'
+    _chk_s lit, $20, 'literal'
+    __fmt_31i $17, a, lit
+end macro
+
+macro const_wide_high16? a?*, lit?*
+    _use_reg_wide a, $08, 'wide register'
+    __fmt_21h $19, a, lit, $30
+end macro
 
 def_10t goto,               $28
 def_20t goto_16,            $29
@@ -243,6 +305,14 @@ macro const_string? a?*, text?*&
     _intern __str, add, text, lengthof text
     repeat 1 e:__str_found
         __fmt_21c $1A, a, __srank_#e
+    end repeat
+end macro
+
+; The same, for a pool past 65536 strings; it costs a unit more.
+macro const_string_jumbo? a?*, text?*&
+    _intern __str, add, text, lengthof text
+    repeat 1 e:__str_found
+        __fmt_31c $1B, a, __srank_#e
     end repeat
 end macro
 
@@ -276,6 +346,33 @@ macro new_array? a?*, b?*, descriptor?*&
     __fmt_22c $23, a, b, __resolved_type
 end macro
 
+; instance-of: 1 in a when b holds something of the type, 0 if not.
+macro instance_of? a?*, b?*, descriptor?*&
+    _ref_type descriptor
+    __fmt_22c $20, a, b, __resolved_type
+end macro
+
+; filled-new-array: an array of the type, filled from the registers
+; given, left for move-result-object.  The type is the array's own,
+; "[I"; ART takes only int arrays and arrays of references here.
+; The registers are read, not passed to a call, so they take no
+; outgoing argument space: outs_size is put back as it was.
+macro filled_new_array? descriptor?*, regs?&
+    _ref_type descriptor
+    __fna_outs = __max_outs
+    __fmt_35c $24, __resolved_type, regs
+    __max_outs = __fna_outs
+end macro
+
+macro filled_new_array_range? descriptor?*, first?*, last?*
+    _ref_type descriptor
+    __fna_outs = __max_outs
+    __fmt_3rc $25, __resolved_type, first, last
+    __max_outs = __fna_outs
+end macro
+
+def_21c_ref_w    sget_wide,              $61
+def_21c_ref_w    sput_wide,              $68
 def_21c_ref sget_object,    $62
 def_21c_ref      sget,                   $60
 def_21c_ref      sget_boolean,           $63
@@ -352,6 +449,12 @@ def_23x          aput_byte,              $4F
 def_23x          aput_char,              $50
 def_23x          aput_short,             $51
 
+def_23x_wnn      aget_wide,              $45    ; a pair, from an array and an index
+def_23x_wnn      aput_wide,              $4C
+def_23x_wwn      shl_long,               $A3    ; a long shifted by an int
+def_23x_wwn      shr_long,               $A4
+def_23x_wwn      ushr_long,              $A5
+
 def_23x_www add_double,     $AB
 def_23x_www sub_double,     $AC
 def_23x_www mul_double,     $AD
@@ -404,6 +507,15 @@ def_12x_ww       xor_long_2addr,         $C2
 def_12x_ww       sub_double_2addr,       $CC
 def_12x_ww       div_double_2addr,       $CE
 def_12x_ww       rem_double_2addr,       $CF
+
+def_22s          add_int_lit16,          $D0
+def_22s          rsub_int,               $D1    ; the literal minus the register
+def_22s          mul_int_lit16,          $D2
+def_22s          div_int_lit16,          $D3
+def_22s          rem_int_lit16,          $D4
+def_22s          and_int_lit16,          $D5
+def_22s          or_int_lit16,           $D6
+def_22s          xor_int_lit16,          $D7
 
 def_22b add_int_lit8,       $D8
 def_22b rsub_int_lit8,      $D9

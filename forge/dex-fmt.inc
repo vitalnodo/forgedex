@@ -21,7 +21,9 @@
 ;
 ;  v0..v255 covers every format that holds a register in a byte
 ;  (11x, 21c, 22b).  Formats with a nibble field (11n, 22c, 35c)
-;  are limited to v0..v15, which the format macros enforce.
+;  are limited to v0..v15, which the format macros enforce.  The
+;  few that reach past 255 — 22x and 32x, and the ranges of 3rc —
+;  take the register as a number, the way p0 already is one.
 ;
 ;  Defined with := so that assigning to a register name is an
 ;  error rather than a silent redefinition.
@@ -146,6 +148,30 @@ macro __fmt_21c? op?*, a?*, idx?*
     dw (a shl 8) or op, idx
 end macro
 
+; 21s: a register and a signed 16-bit literal, sign-extended to 32
+; or 64 bits by the opcode.
+macro __fmt_21s? op?*, a?*, lit?*
+    _use_reg a, $08, 'register'
+    _chk_s lit, $10, 'literal'
+    dw (a shl 8) or op, (lit) and $FFFF
+end macro
+
+; 21h: a register and the top 16 bits of a literal whose other bits
+; are all zero — shift is 16 for a 32-bit value and 48 for a 64-bit
+; one.  It is how 1.0f, $3F800000, fits in two units instead of
+; three.  The literal may be written as the bits themselves or as a
+; negative number, so both $BF800000 and -$40800000 are -1.0f.
+macro __fmt_21h? op?*, a?*, lit?*, shift?*
+    _use_reg a, $08, 'register'
+    if (lit) and (($01 shl (shift)) - $01)
+        err 'only the top 16 bits of this literal may be set'
+    end if
+    if ~ ((((lit) shr (shift)) >= -$8000) & (((lit) shr (shift)) <= $FFFF))
+        err 'literal out of range'
+    end if
+    dw (a shl 8) or op, ((lit) shr (shift)) and $FFFF
+end macro
+
 macro __fmt_21t? op?*, a?*, target?*
     local delta
     _use_reg a, $08, 'register'
@@ -175,6 +201,31 @@ macro __fmt_22b? op?*, a?*, b?*, lit?*
     _use_reg b, $08, 'register'
     _chk_s lit, $08, 'literal'
     dw (a shl 8) or op, ((lit and $FF) shl 8) or b
+end macro
+
+; 22s: two registers in a nibble each and a signed 16-bit literal,
+; the lit16 arithmetic.
+macro __fmt_22s? op?*, a?*, b?*, lit?*
+    _use_reg a, $04, 'register'
+    _use_reg b, $04, 'register'
+    _chk_s lit, $10, 'literal'
+    dw (b shl 12) or (a shl 8) or op, (lit) and $FFFF
+end macro
+
+; 32x: two registers of a full word each — a move between any two
+; registers of the frame, however high.
+macro __fmt_32x? op?*, a?*, b?*
+    _use_reg a, $10, 'register'
+    _use_reg b, $10, 'source register'
+    dw op, a, b
+end macro
+
+; 31c: a register and a pool index of 32 bits, for a string past the
+; first 65536.
+macro __fmt_31c? op?*, a?*, idx?*
+    _use_reg a, $08, 'register'
+    _chk_u idx, $20, 'pool index'
+    dw (a shl 8) or op, (idx) and $FFFF, ((idx) shr $10) and $FFFF
 end macro
 
 ; 22x: a destination in a byte and a source in a full word, which
