@@ -295,7 +295,7 @@ macro emit_method_ids?
     __emitting = $00
     __defmethod_count = $00
     _collect __defmethod, $02
-    _rank_pool __mkey_, __mrank_, __mord_, __defmethod_count, \
+    _order __mkey_, _key_less, __mrank_, __mord_, __defmethod_count, \
         'two methods share a class, a name and a prototype'
     ; No naming pass here, unlike the prototypes: a method is reached
     ; by its reference rather than by a name given to a declaration,

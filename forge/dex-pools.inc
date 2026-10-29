@@ -11,7 +11,7 @@
 ;  putting them together:
 ;
 ;      collect what the file names   →  _collect
-;      rank the keys                 →  _rank_pool
+;      order the keys               →  _order
 ;      emit the items in rank order
 ;
 ;  A composite key is packed into one integer — class, name and type
@@ -28,23 +28,22 @@
 ;    methods     interned the same way, by class, name and prototype;
 ;    fields      appended in declaration order, not interned.  Two
 ;                fields that agree on all three are a mistake rather
-;                than one field, and _rank_pool is where that is
+;                than one field, and _order is where that is
 ;                caught;
 ;    prototypes  interned, and additionally bound to any name a
 ;                declaration gave them.
 ;
 ;  So the shape is shared and the slot allocation is not.
 ;
-;  The string pool is not here: it sorts by UTF-16 code point rather
-;  than by a key, which is a different problem and lives with the
-;  walk that fills it.
+;  The string pool is not here: it lives with the walk that fills
+;  it.  It is ordered by the same _order, with UTF-16 code points
+;  compared where these compare numbers.
 ; ══════════════════════════════════════════════════════════
 
 ; ── Sorted pools ─────────────────────────────────────────
 ;
 ;  type_ids, field_ids and method_ids all sort by keys that are
-;  plain numbers by the time they are emitted, so ranking an entry
-;  is a count of how many keys are smaller.  Composite keys pack
+;  plain numbers by the time they are emitted.  Composite keys pack
 ;  into one integer, major part first, so one comparison covers
 ;  every component.
 ;
@@ -52,29 +51,84 @@
 ;  once to collect the keys and once per position to emit the entry
 ;  that belongs there.  Declaration order is free.
 
-; Two equal keys would take the same rank and leave a position
-; unfilled, which surfaces as a missing symbol well away from the
-; cause, so they are caught while ranking.
-macro _rank_pool? key?*, rank?*, ord?*, n?*, what?*
+; One sort for every pool, the strings too: binary insertion over
+; entries 0 to n-1, leaving the entry at position r in ord#r and the
+; position of entry e in rank#e.  `less result, keys, x, y` answers
+; whether entry x of the pool named by keys goes before entry y;
+; it is the only part that knows what an entry is.  Insertion keeps
+; the comparisons to a binary search per entry, and pays for it in
+; plain integer moves.
+;
+; fasmg's # joins tokens rather than values, so reaching an entry
+; through a computed index means turning that value into a repeat
+; counter first, hence the repeat 1s.
+;
+; Neighbours that are not strictly in order are two equal entries,
+; or a slip in the insertion, and either way the error is `what`.
+; Two equal keys would take one position between them and leave
+; another unfilled, which surfaces as a missing symbol well away
+; from the cause, so they are caught here.
+macro _order? keys?*, less?*, rank?*, ord?*, n?*, what?*
+    __order_m = $00
     repeat n i:$00
-        rank#i = $00
-        repeat n j:$00
-            if key#j < key#i
-                rank#i = rank#i + $01
-            else if (j <> i) & (key#j = key#i)
-                err what
+        __order_lo = $00
+        __order_hi = __order_m
+        while __order_lo < __order_hi
+            __order_mid = (__order_lo + __order_hi) / $02
+            repeat 1 mid:__order_mid
+                repeat 1 k:ord#mid
+                    less __order_lt, keys, k, i
+                end repeat
+            end repeat
+            if __order_lt
+                __order_lo = __order_mid + $01
+            else
+                __order_hi = __order_mid
             end if
+        end while
+        __order_j = __order_m
+        while __order_j > __order_lo
+            repeat 1 a:__order_j, b:__order_j - $01
+                ord#a = ord#b
+            end repeat
+            __order_j = __order_j - $01
+        end while
+        repeat 1 a:__order_lo
+            ord#a = i
         end repeat
+        __order_m = __order_m + $01
     end repeat
-    ; A rank is a position, so reading it back as a counter names
-    ; the entry that belongs there.  Ranks are a permutation, so
-    ; every position gets filled.
-    repeat n i:$00
-        repeat 1 r:rank#i
-            ord#r = i
+    if n > $01
+        repeat n - $01 r:$00, r1:$01
+            repeat 1 x:ord#r, y:ord#r1
+                less __order_lt, keys, x, y
+                if ~ __order_lt
+                    err what
+                end if
+            end repeat
+        end repeat
+    end if
+    repeat n r:$00
+        repeat 1 e:ord#r
+            rank#e = r
         end repeat
     end repeat
 end macro
+
+; _order's `less` for a pool of numeric keys, keys#0 onwards.
+calminstruction _key_less? result*, keys*, x*, y*
+    local sym, a, b, r
+    arrange sym, keys#x
+    compute a, sym
+    arrange sym, keys#y
+    compute b, sym
+    compute r, 0
+    check a < b
+    jno fin
+    compute r, 1
+  fin:
+    publish result, r
+end calminstruction
 
 ; Contribute a descriptor: its text in the string phase, the type
 ; it names in the type phase.  A type joins the pool the first
@@ -173,7 +227,7 @@ macro emit_type_ids?
     __type_n = $00
     _collect __deftype, $02
     __emitting = $01
-    _rank_pool __type_v_, __trank_, __tord_, __type_n, \
+    _order __type_v_, _key_less, __trank_, __tord_, __type_n, \
         'two types name the same descriptor'
     ; Nothing declares a type by name any more, so the items are
     ; emitted straight from what was collected.
@@ -241,7 +295,7 @@ macro emit_field_ids?
     __deffield_index = $00
     _collect __deffield, $02
     __deffield_count = __deffield_index
-    _rank_pool __fkey_, __frank_, __ford_, __deffield_count, \
+    _order __fkey_, _key_less, __frank_, __ford_, __deffield_count, \
         'two fields share a class, a name and a type'
     ; Everything the item needs was recorded while collecting, so the
     ; items come straight out of that in rank order — the same as the
@@ -391,7 +445,7 @@ macro emit_proto_ids?
         end repeat
     end repeat
 
-    _rank_pool __pkey_, __prank_, __pord_, __defproto_count, \
+    _order __pkey_, _key_less, __prank_, __pord_, __defproto_count, \
         'two prototypes share a return type and parameter list'
 
     repeat __defproto_count k:$00

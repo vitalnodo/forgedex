@@ -108,14 +108,23 @@ __sphase = $00              ; 0 idle, 1 collect, 2 bind
 ;
 ; This is the hottest thing in the file — the sort calls it once per
 ; step of every binary search — so it is a CALM instruction rather
-; than a macro.  Measured over 2000 comparisons of two 43-character
+; than a macro.  It is _order's `less` for this pool: entries x and y
+; of the pool named by its prefix, read once each.  Measured over 2000 comparisons of two 43-character
 ; strings differing only at the end: 2.20s as a macro, 0.15s here.
 ;
 ; Note that a label may not be called store, which is a CALM
 ; instruction of its own.
 
-calminstruction _str_less? result*, va*, la*, vb*, lb*
-    local ia, ib, ca, cb, b, b1, b2, b3, r
+calminstruction _str_less? result*, pool*, x*, y*
+    local ia, ib, ca, cb, b, b1, b2, b3, r, sym, va, la, vb, lb
+    arrange sym, pool#=_v_#x
+    compute va, sym
+    arrange sym, pool#=_l_#x
+    compute la, sym
+    arrange sym, pool#=_v_#y
+    compute vb, sym
+    arrange sym, pool#=_l_#y
+    compute lb, sym
     compute ia, 0
     compute ib, 0
     compute r, 0
@@ -197,64 +206,6 @@ calminstruction _str_less? result*, va*, la*, vb*, lb*
     publish result, r
 end calminstruction
 
-; Binary insertion sort, leaving the pool index of position r in
-; __ord_#r.  Insertion keeps the expensive part, comparing two
-; strings, down to a binary search per entry, and pays for it in
-; plain integer moves.
-;
-; fasmg's # joins tokens rather than values, so reaching an entry
-; through a computed index means turning that value into a repeat
-; counter first, hence the nested repeat 1.
-
-macro _sort_strings? n?*
-    __sort_m = $00
-    repeat n i:$00
-        __sort_lo = $00
-        __sort_hi = __sort_m
-        while __sort_lo < __sort_hi
-            __sort_mid = (__sort_lo + __sort_hi) / $02
-            repeat 1 mid:__sort_mid
-                repeat 1 k:__ord_#mid
-                    _str_less __sort_lt, __str_v_#k, __str_l_#k, __str_v_#i, __str_l_#i
-                end repeat
-            end repeat
-            if __sort_lt
-                __sort_lo = __sort_mid + $01
-            else
-                __sort_hi = __sort_mid
-            end if
-        end while
-        __sort_j = __sort_m
-        while __sort_j > __sort_lo
-            repeat 1 a:__sort_j
-                repeat 1 b:(a - $01)
-                    __ord_#a = __ord_#b
-                end repeat
-            end repeat
-            __sort_j = __sort_j - $01
-        end while
-        repeat 1 a:__sort_lo
-            __ord_#a = i
-        end repeat
-        __sort_m = __sort_m + $01
-    end repeat
-    ; The comparator decided the order, so re-reading it proves
-    ; nothing about itself; this catches a slip in the insertion.
-    ; Interning means equal strings never reach here.
-    if n > $01
-        repeat n - $01 r:$00, r1:$01
-            repeat 1 a:__ord_#r
-                repeat 1 b:__ord_#r1
-                    _str_less __sort_lt, __str_v_#a, __str_l_#a, __str_v_#b, __str_l_#b
-                    if ~ __sort_lt
-                        err 'string pool came out unsorted'
-                    end if
-                end repeat
-            end repeat
-        end repeat
-    end if
-end macro
-
 ; Each declaration that contributes a string remembers which pool
 ; entry it landed in, so the binding pass can turn that into the
 ; position the sort gave it.
@@ -288,12 +239,10 @@ macro emit_string_ids?
         _walk_lists
     end virtual
 
-    _sort_strings __str_n
-    repeat __str_n r:$00
-        repeat 1 e:__ord_#r
-            __srank_#e = r
-        end repeat
-    end repeat
+    ;  Interning means equal strings never reach the sort, so the
+    ;  check it ends with can only catch a slip in the insertion.
+    _order __str, _str_less, __srank_, __ord_, __str_n, \
+        'string pool came out unsorted'
 
     ; The binding pass has one job: turn the pool slot a defstr landed
     ; in into the position the sort gave it, under the name that defstr
