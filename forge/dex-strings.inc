@@ -100,10 +100,18 @@ end macro
 __str_n  = $00              ; distinct strings in the pool
 __sphase = $00              ; 0 idle, 1 collect, 2 bind
 
-; Sorting is by UTF-16 code point value, which is not MUTF-8 byte
-; order: a supplementary character is encoded as a surrogate pair
-; starting with $ED, so byte order puts it below U+FFFD while code
-; point order puts it above.  Decode and compare code points.
+; Sorting is by UTF-16 code unit, which is what the format means by
+; "UTF-16 code point values" and what ART checks: its comparison
+; decodes both strings to UTF-16 and compares a character above the
+; basic plane by its leading surrogate, then its trailing one.  So
+; U+1F600, D83D DE00, goes before U+E000, which plain code point
+; order would put first.
+;
+; Each character is decoded to a key that orders the same way: a
+; basic plane character is its value shifted up ten bits, one above
+; it its leading surrogate shifted the same, with the low ten bits
+; of the trailing one below.  No character in UTF-8 is a surrogate,
+; so the two kinds never tie.
 ;
 ; This is the hottest thing in the file — the sort calls it once per
 ; step of every binary search — so it is a CALM instruction rather
@@ -143,22 +151,23 @@ calminstruction _str_less? result*, pool*, x*, y*
     compute b1, (va shr ((ia + 1) * 8)) and $3F
     compute b2, (va shr ((ia + 2) * 8)) and $3F
     compute b3, (va shr ((ia + 3) * 8)) and $3F
-    compute ca, ((b and $07) shl 18) or (b1 shl 12) or (b2 shl 6) or b3
+    compute ca, (((b and $07) shl 18) or (b1 shl 12) or (b2 shl 6) or b3) - $10000
+    compute ca, (($D800 + (ca shr 10)) shl 10) or (ca and $3FF)
     compute ia, ia + 4
     jump adone
   a1:
-    compute ca, b
+    compute ca, b shl 10
     compute ia, ia + 1
     jump adone
   a2:
     compute b1, (va shr ((ia + 1) * 8)) and $3F
-    compute ca, ((b and $1F) shl 6) or b1
+    compute ca, (((b and $1F) shl 6) or b1) shl 10
     compute ia, ia + 2
     jump adone
   a3:
     compute b1, (va shr ((ia + 1) * 8)) and $3F
     compute b2, (va shr ((ia + 2) * 8)) and $3F
-    compute ca, ((b and $0F) shl 12) or (b1 shl 6) or b2
+    compute ca, (((b and $0F) shl 12) or (b1 shl 6) or b2) shl 10
     compute ia, ia + 3
   adone:
     ; and of vb at ib
@@ -172,22 +181,23 @@ calminstruction _str_less? result*, pool*, x*, y*
     compute b1, (vb shr ((ib + 1) * 8)) and $3F
     compute b2, (vb shr ((ib + 2) * 8)) and $3F
     compute b3, (vb shr ((ib + 3) * 8)) and $3F
-    compute cb, ((b and $07) shl 18) or (b1 shl 12) or (b2 shl 6) or b3
+    compute cb, (((b and $07) shl 18) or (b1 shl 12) or (b2 shl 6) or b3) - $10000
+    compute cb, (($D800 + (cb shr 10)) shl 10) or (cb and $3FF)
     compute ib, ib + 4
     jump cdone
   c1:
-    compute cb, b
+    compute cb, b shl 10
     compute ib, ib + 1
     jump cdone
   c2:
     compute b1, (vb shr ((ib + 1) * 8)) and $3F
-    compute cb, ((b and $1F) shl 6) or b1
+    compute cb, (((b and $1F) shl 6) or b1) shl 10
     compute ib, ib + 2
     jump cdone
   c3:
     compute b1, (vb shr ((ib + 1) * 8)) and $3F
     compute b2, (vb shr ((ib + 2) * 8)) and $3F
-    compute cb, ((b and $0F) shl 12) or (b1 shl 6) or b2
+    compute cb, (((b and $0F) shl 12) or (b1 shl 6) or b2) shl 10
     compute ib, ib + 3
   cdone:
     check ca = cb
