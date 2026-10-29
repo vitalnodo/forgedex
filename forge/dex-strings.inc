@@ -30,9 +30,8 @@
 ;
 ;      string_ids:
 ;          emit_string_ids _strings, _types, _protos
-;      data:
-;          data_strings:
-;              emit_string_data
+;      data_strings:
+;          emit_string_data
 ;
 ;  Strings come from three places: the literals declared here, the
 ;  descriptors carried by the types, and the shorties worked out

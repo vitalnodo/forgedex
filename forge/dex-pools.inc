@@ -356,9 +356,8 @@ end macro
 ;
 ;      proto_ids:
 ;          emit_proto_ids _protos
-;      data:
-;          data_type_lists:
-;              emit_proto_type_lists _protos
+;      data_type_lists:
+;          emit_proto_type_lists _protos
 ;
 ;  defproto names the prototype, its shorty string, its return type
 ;  and its parameter types, each by the base it was declared under.
