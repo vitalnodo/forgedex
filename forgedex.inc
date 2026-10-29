@@ -11,7 +11,9 @@
 ;  of its own, and they are included below in the order you would
 ;  meet them reading the format:
 ;
-;    forge/base.inc         width-checked emitters and align.  Shared
+;    forge/base.inc         width-checked emitters and align, and the
+;                           pools: _intern, _order, the UTF-16 count
+;                           and the string order ART checks.  Shared
 ;                           with forgeres.inc and forgeaxml.inc.
 ;
 ;    forge/dex-hash.inc     the Adler-32 and SHA-1 the header carries,
@@ -28,9 +30,8 @@
 ;                           packs its operands into nibbles.
 ;
 ;    forge/dex-ref.inc      reading "Lclass;->name(args)ret" back into
-;                           pool indices.  Mostly CALM, because the
-;                           string comparison in it is the hottest
-;                           code in the assembler.
+;                           what it names, and answering an
+;                           instruction with the rank of each part.
 ;
 ;    forge/dex-insn.inc     the def_* helpers, then the table of every
 ;                           instruction the DSL speaks.  Read that
@@ -39,18 +40,19 @@
 ;    forge/dex-file.inc     the header, the order of the sections, and
 ;                           the map saying where each of them went.
 ;
-;    forge/dex-strings.inc  the string pool, and the multi-pass walk
-;                           that fills every pool.
+;    forge/dex-strings.inc  the string pool's declarations, and the
+;                           lists the one walk reads.
 ;
-;    forge/dex-class.inc    defclass, deffield, method … end method —
-;                           what an example actually writes.
+;    forge/dex-class.inc    defclass, method … end method and the
+;                           class data — what an example writes.
 ;
-;    forge/dex-pools.inc    the four pools sorted by a key, all built
-;                           the same way.
+;    forge/dex-pools.inc    deftype, deffield, defmethod, defproto,
+;                           and the one walk that collects every pool
+;                           before they are put in order bottom up.
 ;
-;  To write an example you need dex-insn.inc for the vocabulary and
-;  dex-class.inc for how to declare things.  The rest is how the
-;  format is satisfied.
+;  To write an example you need dex-insn.inc for the vocabulary, and
+;  dex-class.inc and dex-pools.inc for how to declare things.  The
+;  rest is how the format is satisfied.
 ; ══════════════════════════════════════════════════════════
 
 if ~ definite __forgedex_included

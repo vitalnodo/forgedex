@@ -246,15 +246,6 @@ macro _ref_signature? ref?*, n?*
     _walk_descs ref, n, __ref_open + $01, __ref_close, _sig_param
 end macro
 
-; Whether the return type is wide, which decides between
-; move-result and move-result-wide at a call site.
-macro _ref_ret_wide? result?*
-    if (__ref_rl = $01) & ((__ref_rv = $4A) | (__ref_rv = $44))
-        result = $01
-    else
-        result = $00
-    end if
-end macro
 ; A descriptor contributes one character to the shorty, and the one
 ; rule worth remembering is that an array is L whatever it is an
 ; array of — [I and [[Ljava/lang/String; are both L.  Written in one

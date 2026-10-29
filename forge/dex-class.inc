@@ -20,9 +20,8 @@
 
 ; ── Class data ───────────────────────────────────────────
 ;
-;      defclassdata _hello_class_data, "Lapp/hello/HelloWorld;"
-;
-;  The members are the fields and methods declared with access
+;  Written for every class by dex_file; nothing declares it.  The
+;  members are the fields and methods declared with access
 ;  flags, and which of them belong here is decided by the class in
 ;  their own reference.  Sizes, the split between the two field
 ;  lists and the two method lists, and the ascending order the
@@ -145,8 +144,8 @@ end struc
 ; ── Class declaration ────────────────────────────────────
 ;
 ;      macro _class
-;          defclass _hello_class, "Lapp/hello/HelloWorld;", ACC_PUBLIC, \
-;              "Landroid/app/Activity;", _hello_ifaces, _hello_class_data
+;          defclass "Lapp/hello/HelloWorld;", ACC_PUBLIC, \
+;              "Landroid/app/Activity;", _hello_ifaces
 ;      end macro
 ;
 ;  Named by descriptor like everything else, so the class and its

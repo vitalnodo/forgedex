@@ -494,8 +494,6 @@ macro emit_checksums?
     __snapshot_index field_ids_size,  __field_id_item
     __snapshot_index method_ids_size, __method_id_item
     __snapshot_index class_defs_size, __class_def_item
-    type_list_count = __type_list_count
-    code_item_count = __code_item_count
 
     load __sha1_payload : ($ - header_sha1) from __global : header_sha1
     __sha1_result sha1 __sha1_payload

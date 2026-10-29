@@ -87,10 +87,6 @@ struc class_def_item?           _class_idx?*, _access_flags?*, _superclass_idx?*
     .static_values_off?: uint _static_values_off
 end struc
 
-struc type_item? _type_idx?*
-    .type_idx?: ushort _type_idx
-end struc
-
 __type_list_count? = 0
 __tl_seq = 0
 
@@ -119,17 +115,6 @@ macro _type_list_type? t?*
     __tl_j = __tl_j + 1
     ushort t
 end macro
-
-struc type_list? _size?*, _list?*
-    __type_list_count? = __type_list_count? + 1
-    align $04
-    label .
-    .size?: uint _size
-    .list?:
-    iterate item?, _list
-        .list?.% type_item item
-    end iterate
-end struc
 
 ; The four list sizes are the lengths of the four lists, so count
 ; them rather than have the caller restate them.

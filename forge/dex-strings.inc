@@ -23,10 +23,6 @@
 ;          defstr _init, "<init>"
 ;      end macro
 ;
-;      macro _strings
-;          defstr _init, "<init>"
-;      end macro
-;
 ;  Strings come from everywhere: the literals declared here and in
 ;  the code, the descriptors of every type named, member names, and
 ;  the shorties worked out from the prototypes.  A defstr also gives

@@ -62,14 +62,12 @@ end macro
 ; ── Type list ────────────────────────────────────────────
 ;
 ;      macro _types
-;          deftype _activity
-;          deftype _I
+;          deftype "Ljava/lang/Object;"
 ;      end macro
 ;
-;      type_ids:
-;          emit_type_ids _types
-;
-;  Sorted by the index of the descriptor string.
+;  Most types arrive through a reference — a class, a superclass, a
+;  parameter, new_instance — and deftype is for one that nothing
+;  names.  Sorted by the index of the descriptor string.
 
 __type_n         = $00
 
@@ -147,16 +145,13 @@ end macro
 
 ; ── Field list ───────────────────────────────────────────
 ;
-;      macro _fields
-;          deffield _f_count, _hello, _I, _count
-;      end macro
+;      deffield "->count:I", ACC_PUBLIC
+;      deffield "Landroid/graphics/Bitmap$Config;->ARGB_8888:Landroid/graphics/Bitmap$Config;"
 ;
-;      field_ids:
-;          emit_field_ids _fields
-;
-;  deffield names the field, then its class, its type and its name,
-;  each by the base the type or string was declared under.
-;  Sorted by class, then name, then type.
+;  A field is named by its reference, "->" meaning the class declared
+;  last.  With access flags it is a member of that class; without,
+;  it is one the code reaches in some other class.  Sorted by class,
+;  then name, then type.
 
 __deffield_index  = $00
 __field_n         = $00
@@ -189,15 +184,12 @@ end macro
 
 ; ── Method list ──────────────────────────────────────────
 ;
-;      macro _methods
-;          defmethod _act_init_m, _activity, _void, _init
-;      end macro
+;      defmethod "->answer()Ljava/lang/String;", ACC_PUBLIC or ACC_NATIVE
+;      defmethod "Ljava/lang/Integer;->toString(I)Ljava/lang/String;"
 ;
-;      method_ids:
-;          emit_method_ids _methods
-;
-;  defmethod names the method, then its class, its prototype and
-;  its name, each by the base it was declared under.
+;  Most methods arrive through a reference — an invoke, or a method
+;  with its body — and defmethod is for one with no body here: a
+;  native one, given flags, or one the pool should carry anyway.
 ;  Sorted by class, then name, then prototype.
 
 __method_n  = $00
@@ -221,18 +213,14 @@ end macro
 ; ── Prototype list ───────────────────────────────────────
 ;
 ;      macro _protos
-;          defproto _void,    _V,  _V,       <>
-;          defproto _bundle,  _VL, _V,       <_bundle>
-;          defproto _I_str,   _LI, _string,  <_I>
+;          defproto _oncl, "V", <"Landroid/view/View$OnClickListener;">
+;          defproto _I,    "I", <>
 ;      end macro
 ;
-;      proto_ids:
-;          emit_proto_ids _protos
-;      data_type_lists:
-;          emit_proto_type_lists _protos
-;
-;  defproto names the prototype, its shorty string, its return type
-;  and its parameter types, each by the base it was declared under.
+;  Most prototypes arrive through a method reference.  defproto is
+;  for one wanted by name: it gives _oncl_proto, the prototype's
+;  index, and _oncl_tl, its parameter list, which a class can point
+;  its interfaces at.
 ;
 ;  proto_ids sort by return type and then by parameter list compared
 ;  element by element, so the parameters have to be readable at sort
