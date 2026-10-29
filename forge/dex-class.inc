@@ -79,13 +79,16 @@ end macro
 
 ; Walking the ranks rather than the declarations puts the entries
 ; in the ascending order the format asks for, whatever order they
-; were written in.
+; were written in.  The entry at each rank is read from the order
+; table rather than searched for: the search made the class data
+; quadratic in the number of members, and it was most of the time
+; a build took.
 macro _cd_emit_fields? want_static?*
     local d, diff
     _enc_group_start
     repeat __field_n r:$00
-        repeat __field_n k:$00
-            if (__frank_#k = r) & __fmember_#k & (__fcls_#k = __cd_cls)
+        repeat 1 k:__ford_#r
+            if __fmember_#k & (__fcls_#k = __cd_cls)
                 d = $00
                 if (__fflags_#k and ACC_STATIC)
                     d = $01
@@ -104,8 +107,8 @@ macro _cd_emit_methods? want_direct?*
     local d, diff
     _enc_group_start
     repeat __method_n r:$00
-        repeat __method_n k:$00
-            if (__mrank_#k = r) & __mmember_#k & (__mcls_#k = __cd_cls)
+        repeat 1 k:__mord_#r
+            if __mmember_#k & (__mcls_#k = __cd_cls)
                 _cd_is_direct d, k
                 if d = want_direct
                     _enc_idx_diff diff, r, 'methods'
