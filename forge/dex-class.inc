@@ -158,11 +158,6 @@ end struc
 ; requires.  Each pick is the smallest type among those whose own
 ; supertypes are already out.  The class data follows the same order.
 macro emit_class_defs?
-    __class_defs_phase = $01
-    __defclass_index = $00
-    _walk_lists
-    __class_count = __defclass_index
-    __class_defs_phase = $00
     repeat __class_count k:$00
         __cplaced_#k = $00
     end repeat
@@ -226,26 +221,22 @@ macro defclass? descriptor?*, flags?*, super?*, ifaces?
         __clsv_#k = descriptor
         __clsl_#k = lengthof descriptor
     end repeat
-    if __class_defs_phase
-        _lookup_string __dc_s, descriptor, lengthof descriptor
-        _lookup_type __dc_cls, __dc_s
-        _lookup_string __dc_s, super, lengthof super
-        _lookup_type __dc_sup, __dc_s
-        match , ifaces
-            __dc_if = $00
-        else
-            __dc_if = ifaces
-        end match
-        ;  Written by emit_class_defs once every class is known.
+    ;  Kept as types met, made ranks by _dex_settle, and written by
+    ;  emit_class_defs once every class is known.
+    if __sphase = $01
+        _use_type descriptor, lengthof descriptor
+        __dc_cls = __type_found
+        _use_type super, lengthof super
         repeat 1 k:__defclass_index
             __dccls_#k = __dc_cls
             __dcflags_#k = flags
-            __dcsup_#k = __dc_sup
-            __dcif_#k = __dc_if
+            __dcsup_#k = __type_found
+            match , ifaces
+                __dcif_#k = $00
+            else
+                __dcif_#k = ifaces
+            end match
         end repeat
-    else
-        _use_type descriptor, lengthof descriptor
-        _use_type super, lengthof super
     end if
     __defclass_index = __defclass_index + $01
 end macro
@@ -306,17 +297,15 @@ macro method? ref?*, flags?*, frame?*
         _resolve_method_parts __m_v, __m_l
         _intern_method __ref_class, __ref_name, __ref_proto
         __m_k = __method_found
-    else
+    else if __sphase = $01
         _use_method_ref __m_v, __m_l
-        if __defmethod_mode = $02
-            __m_k = __method_found
-            repeat 1 k:__m_k
-                __mmember_#k = $01
-                __mflags_#k = flags
-                __mcode_#k = __code_#k
-                __mbody_#k = $01
-            end repeat
-        end if
+        __m_k = __method_found
+        repeat 1 k:__m_k
+            __mmember_#k = $01
+            __mflags_#k = flags
+            __mcode_#k = __code_#k
+            __mbody_#k = $01
+        end repeat
     end if
     repeat $100 i:$00
         if defined p#i
@@ -358,15 +347,6 @@ macro end?.method?
 end macro
 
 macro emit_method_ids?
-    __emitting = $00
-    __method_n = $00
-    _collect __defmethod, $02
-    _order __method_v_, _key_less, __mrank_, __mord_, __method_n, \
-        'two methods share a class, a name and a prototype'
-    ; No naming pass here, unlike the prototypes: a method is reached
-    ; by its reference rather than by a name given to a declaration,
-    ; so there is nothing left to bind once the ranks are in.
-    __emitting = $01
     repeat __method_n r:$00
         repeat 1 t:__mord_#r
             __mid_#t method_id_item __mcls_#t, __mpr_#t, __mnm_#t

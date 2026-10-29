@@ -75,6 +75,7 @@ macro dex_file? interfaces?
     postpone
     __global::
         __dex_interfaces equ interfaces
+        _dex_collect
         _dex_sections _dex_write
         dex_map_list
         dex_footer

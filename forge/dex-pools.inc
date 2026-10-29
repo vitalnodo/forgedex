@@ -10,8 +10,8 @@
 ;  All four are built the same way, and seeing that is the point of
 ;  putting them together:
 ;
-;      collect what the file names   →  _collect
-;      order the keys               →  _order
+;      collect what the file names   →  _dex_collect, one walk
+;      order the keys               →  _dex_settle, with _order
 ;      emit the items in rank order
 ;
 ;  A composite key is packed into one integer — class, name and type
@@ -35,9 +35,9 @@
 ;
 ;  So the shape is shared and the slot allocation is not.
 ;
-;  The string pool is not here: it lives with the walk that fills
-;  it.  It is ordered by the same _order, with UTF-16 code points
-;  compared where these compare numbers.
+;  The string pool's declarations are in dex-strings.inc, but it is
+;  collected and ordered here with the rest, by the same _order,
+;  with UTF-16 code units compared where these compare numbers.
 ; ══════════════════════════════════════════════════════════
 
 ; ── Sorted pools ─────────────────────────────────────────
@@ -47,20 +47,17 @@
 ;  into one integer, major part first, so one comparison covers
 ;  every component.
 ;
-;  Each pool is declared in a macro, because the list gets expanded
-;  once to collect the keys and once per position to emit the entry
-;  that belongs there.  Declaration order is free.
+;  Declaration order is free: what comes out depends on the keys.
 
-; Contribute a descriptor: its text in the string phase, the type
-; it names in the type phase.  A type joins the pool the first
-; time a reference names it.
+; Contribute a descriptor: its text to the string pool and the type
+; it names to the type pool, which holds the string's place until
+; the strings are sorted.  A type joins the pool the first time a
+; reference names it, and __type_found says which it is.
 macro _use_type? v?*, l?*
     _chk_descriptor v, l
     if __sphase = $01
         _intern __str, add, v, l
-    else if __deftype_mode = $02
-        _lookup_string __ut_s, v, l
-        _intern __type, add, __ut_s
+        _intern __type, add, __str_found
     end if
 end macro
 
@@ -76,7 +73,6 @@ end macro
 ;
 ;  Sorted by the index of the descriptor string.
 
-__deftype_mode   = $00      ; 0 emit, 2 collect
 __type_n         = $00
 
 ; A type descriptor is a primitive letter, or L followed by a name
@@ -144,14 +140,6 @@ macro deftype? descriptor?*&
 end macro
 
 macro emit_type_ids?
-    __emitting = $00
-    __type_n = $00
-    _collect __deftype, $02
-    __emitting = $01
-    _order __type_v_, _key_less, __trank_, __tord_, __type_n, \
-        'two types name the same descriptor'
-    ; Nothing declares a type by name any more, so the items are
-    ; emitted straight from what was collected.
     repeat __type_n r:$00
         repeat 1 t:__tord_#r
             __tid_#t type_id_item __type_v_#t
@@ -172,17 +160,13 @@ end macro
 ;  each by the base the type or string was declared under.
 ;  Sorted by class, then name, then type.
 
-__deffield_mode   = $00
 __deffield_index  = $00
 __field_n         = $00
 
 macro deffield? ref?*, flags?
-    if (__sphase = $01) | (__deftype_mode = $02)
+    if __sphase = $01
         _ref_pair ref
         _use_field_ref_types __rf_v, __rf_l
-    else if __deffield_mode = $02
-        _ref_pair ref
-        _resolve_field_parts __rf_v, __rf_l
         repeat 1 k:__deffield_index
             match , flags
                 __fmember_#k = $00
@@ -191,27 +175,15 @@ macro deffield? ref?*, flags?
                 __fmember_#k = $01
                 __fflags_#k = flags
             end match
-            __fcls_#k = __ref_class
-            __fnm_#k  = __ref_name
-            __fty_#k  = __ref_type
-            __field_v_#k = (__ref_class shl $40) or (__ref_name shl $20) or __ref_type
+            __fcls_#k = __uf_cls
+            __fnm_#k  = __uf_nm
+            __fty_#k  = __uf_ty
         end repeat
         __deffield_index = __deffield_index + $01
     end if
 end macro
 
 macro emit_field_ids?
-    __emitting = $00
-    __deffield_index = $00
-    _collect __deffield, $02
-    __field_n = __deffield_index
-    _order __field_v_, _key_less, __frank_, __ford_, __field_n, \
-        'two fields share a class, a name and a type'
-    ; Everything the item needs was recorded while collecting, so the
-    ; items come straight out of that in rank order — the same as the
-    ; type and method pools do it.  Reaching them by walking the lists
-    ; again, once per field, is what this used to do.
-    __emitting = $01
     repeat __field_n r:$00
         repeat 1 t:__ford_#r
             __fid_#t field_id_item __fcls_#t, __fty_#t, __fnm_#t
@@ -232,28 +204,23 @@ end macro
 ;  its name, each by the base it was declared under.
 ;  Sorted by class, then name, then prototype.
 
-__defmethod_mode   = $00
 __method_n  = $00
 
 ; A method the pool should carry that nothing calls.
 ; A method with no code of its own: one the pool should carry that
 ; nothing calls, or a native one, whose body is in the library.
 macro defmethod? ref?*, flags?
-    ; Phase two only binds what phase one interned, so a declaration
-    ; has nothing to say during it.
-    if __sphase <> $02
+    if __sphase = $01
         _ref_pair ref
         _use_method_ref __rf_v, __rf_l
-        if __defmethod_mode = $02
-            match , flags
-            else
-                repeat 1 k:__method_found
-                    __mmember_#k = $01
-                    __mflags_#k = flags
-                    __mcode_#k = $00
-                end repeat
-            end match
-        end if
+        match , flags
+        else
+            repeat 1 k:__method_found
+                __mmember_#k = $01
+                __mflags_#k = flags
+                __mcode_#k = $00
+            end repeat
+        end match
     end if
 end macro
 
@@ -290,93 +257,35 @@ end macro
 ;  zero and a shorter list sorts before a longer one sharing its
 ;  start.
 
-__defproto_mode   = $00     ; 0 emit ids, 1 emit type lists, 2 collect
 __defproto_index  = $00
 __proto_n  = $00
 __defproto_maxpar = $00
 
 macro defproto? base?*, return?*, params?
-    if (__sphase = $01) | (__deftype_mode = $02)
+    if __sphase = $01
         _use_type return, lengthof return
-        iterate p?, params
-            _use_type p, lengthof p
-        end iterate
-        if __sphase = $01
-            _shorty_of return, params
-            _intern __str, add, __shortyv, __shortyl
-        end if
-    else if __defproto_mode = $02
-        _lookup_string __pt_s, return, lengthof return
-        _lookup_type __pt_r, __pt_s
+        __dp_ret = __type_found
         __ref_n = $00
         iterate p?, params
-            _lookup_string __pt_s, p, lengthof p
-            _lookup_type __pt_t, __pt_s
+            _use_type p, lengthof p
             repeat 1 j:__ref_n
-                __ref_p_#j = __pt_t
+                __ref_p_#j = __type_found
             end repeat
             __ref_n = __ref_n + $01
         end iterate
         _shorty_of return, params
-        _lookup_string __pt_sh, __shortyv, __shortyl
-        _intern_proto __pt_r, __ref_n, __pt_sh
+        _intern __str, add, __shortyv, __shortyl
+        _intern_proto __dp_ret, __ref_n, __str_found
+        ;  The name is given once the ranks are in, by _dex_settle.
         repeat 1 i:__defproto_index
             __pdecl_#i = __proto_found
-        end repeat
-        __defproto_index = __defproto_index + $01
-    else if __defproto_mode = $03
-        repeat 1 i:__defproto_index
-            repeat 1 k:__pdecl_#i
-                base#_proto = __prank_#k
-                base#_tl = __ptlname_#k
-            end repeat
+            __pdecl_name_#i equ base
         end repeat
         __defproto_index = __defproto_index + $01
     end if
 end macro
 
 macro emit_proto_ids?
-    __emitting = $00
-    __proto_n = $00
-    __defproto_maxpar = $00
-    __defproto_index = $00
-    _collect __defproto, $02
-
-    repeat __proto_n k:$00
-        __pkey_#k = (__pret_#k) shl ($20 * __defproto_maxpar)
-        __psig_#k = $00
-        repeat __defproto_maxpar j:$00
-            if j < __pcnt_#k
-                __pkey_#k = __pkey_#k or \
-                    ((__pp_#k#_#j + $01) shl ($20 * (__defproto_maxpar - $01 - j)))
-                __psig_#k = __psig_#k or ((__pp_#k#_#j + $01) shl ($20 * j))
-            end if
-        end repeat
-    end repeat
-
-    _order __pkey_, _key_less, __prank_, __pord_, __proto_n, \
-        'two prototypes share a return type and parameter list'
-
-    repeat __proto_n k:$00
-        __pbest = -$01
-        repeat __proto_n j:$00
-            if __psig_#j = __psig_#k
-                if (__pbest = -$01) | (__prank_#j < __pbestrank)
-                    __pbest = j
-                    __pbestrank = __prank_#j
-                end if
-            end if
-        end repeat
-        __powner_#k = __pbest
-    end repeat
-
-    ; Give the prototypes that were declared outright their names.
-    __defproto_index = $00
-    _collect __defproto, $03
-    __emitting = $01
-
-    ; Nothing declares most of these by name, so they are emitted
-    ; straight from what was collected.
     repeat __proto_n r:$00
         repeat 1 t:__pord_#r
             __pid_#t proto_id_item __pshorty_#t, __pret_#t, __ptlname_#t
@@ -404,6 +313,150 @@ macro emit_proto_type_lists?
                     __ptlname_#k = __ptl_#o
                 end repeat
             end if
+        end repeat
+    end repeat
+end macro
+
+; ── Collecting, once ──────────────────────────────────────
+;
+;  The lists are walked once, and everything they name goes into
+;  its pool where it is first met: a string, a type as the string
+;  it names, a prototype as its types, a method as its class, name
+;  and prototype, a field, a class.  An index is the order things
+;  were met in, and it does not move for the rest of the pass, so
+;  each pool can point into the ones below it already.
+;
+;  Then the pools are put in order from the bottom up, and each one
+;  read through the ranks of the ones under it — the strings first,
+;  then the types by their strings' ranks, the prototypes by their
+;  types', and the fields and methods by all of those.  Only the
+;  code is walked again, since it is written with the final indices.
+
+macro _dex_collect?
+    __emitting = $00
+    __str_n = $00
+    __type_n = $00
+    __proto_n = $00
+    __defproto_maxpar = $00
+    __method_n = $00
+    __defstr_index = $00
+    __defproto_index = $00
+    __deffield_index = $00
+    __sphase = $01
+    virtual at $00
+        _walk_lists
+    end virtual
+    __sphase = $00
+    __class_count = __defclass_index
+    _dex_settle
+    __emitting = $01
+end macro
+
+macro _dex_settle?
+    ;  Interning means equal strings never reach the sort, so the
+    ;  check it ends with can only catch a slip in the insertion.
+    _order __str, _str_less, __srank_, __ord_, __str_n, \
+        'string pool came out unsorted'
+    repeat __defstr_index k:$00
+        repeat 1 e:__dstr_slot_#k
+            match b, __dstr_name_#k
+                b#_string = __srank_#e
+            end match
+        end repeat
+    end repeat
+
+    ;  A type is held as its string until the strings have ranks.
+    repeat __type_n t:$00
+        repeat 1 s:__type_v_#t
+            __type_v_#t = __srank_#s
+        end repeat
+    end repeat
+    _order __type_v_, _key_less, __trank_, __tord_, __type_n, \
+        'two types name the same descriptor'
+
+    ;  A prototype's parts become ranks, and so does the key it is
+    ;  found by, for the code to find it with what it resolves.
+    repeat __proto_n k:$00
+        repeat 1 t:__pret_#k
+            __pret_#k = __trank_#t
+        end repeat
+        repeat __pcnt_#k j:$00
+            repeat 1 t:__pp_#k#_#j
+                __pp_#k#_#j = __trank_#t
+            end repeat
+        end repeat
+        repeat 1 s:__pshorty_#k
+            __pshorty_#k = __srank_#s
+        end repeat
+        __pk = __pret_#k
+        repeat __pcnt_#k j:$00
+            __pk = __pk or ((__pp_#k#_#j + $01) shl ($20 * (j + $01)))
+        end repeat
+        __proto_v_#k = __pk
+    end repeat
+    repeat __proto_n k:$00
+        __pkey_#k = (__pret_#k) shl ($20 * __defproto_maxpar)
+        __psig_#k = $00
+        repeat __defproto_maxpar j:$00
+            if j < __pcnt_#k
+                __pkey_#k = __pkey_#k or \
+                    ((__pp_#k#_#j + $01) shl ($20 * (__defproto_maxpar - $01 - j)))
+                __psig_#k = __psig_#k or ((__pp_#k#_#j + $01) shl ($20 * j))
+            end if
+        end repeat
+    end repeat
+    _order __pkey_, _key_less, __prank_, __pord_, __proto_n, \
+        'two prototypes share a return type and parameter list'
+    ;  Prototypes taking the same parameters share one list, owned
+    ;  by the first of them in rank order.
+    repeat __proto_n k:$00
+        __pbest = -$01
+        repeat __proto_n j:$00
+            if __psig_#j = __psig_#k
+                if (__pbest = -$01) | (__prank_#j < __pbestrank)
+                    __pbest = j
+                    __pbestrank = __prank_#j
+                end if
+            end if
+        end repeat
+        __powner_#k = __pbest
+    end repeat
+    repeat __defproto_index i:$00
+        repeat 1 k:__pdecl_#i
+            match b, __pdecl_name_#i
+                b#_proto = __prank_#k
+                b#_tl = __ptlname_#k
+            end match
+        end repeat
+    end repeat
+
+    __field_n = __deffield_index
+    repeat __field_n k:$00
+        repeat 1 c:__fcls_#k, n:__fnm_#k, t:__fty_#k
+            __fcls_#k = __trank_#c
+            __fnm_#k  = __srank_#n
+            __fty_#k  = __trank_#t
+        end repeat
+        __field_v_#k = (__fcls_#k shl $40) or (__fnm_#k shl $20) or __fty_#k
+    end repeat
+    _order __field_v_, _key_less, __frank_, __ford_, __field_n, \
+        'two fields share a class, a name and a type'
+
+    repeat __method_n k:$00
+        repeat 1 c:__mcls_#k, n:__mnm_#k, p:__mpr_#k
+            __mcls_#k = __trank_#c
+            __mnm_#k  = __srank_#n
+            __mpr_#k  = __prank_#p
+        end repeat
+        __method_v_#k = (__mcls_#k shl $40) or (__mnm_#k shl $20) or __mpr_#k
+    end repeat
+    _order __method_v_, _key_less, __mrank_, __mord_, __method_n, \
+        'two methods share a class, a name and a prototype'
+
+    repeat __class_count k:$00
+        repeat 1 c:__dccls_#k, s:__dcsup_#k
+            __dccls_#k = __trank_#c
+            __dcsup_#k = __trank_#s
         end repeat
     end repeat
 end macro

@@ -37,11 +37,10 @@
 ;  descriptor is read, looked up in the string pool, and turned
 ;  into the type index.
 ;
-;  Looking up, not registering: the pools are settled by the time
-;  any code is assembled, so a descriptor naming something that was
-;  never declared is an error rather than a new entry.  Registering
-;  from the point of use would mean walking the method bodies
-;  during the collect phase, which is a larger change.
+;  Looking up, not registering: whatever the code names was put in
+;  its pool while the lists were collected, the method bodies with
+;  them, and the pools are settled before the code is assembled for
+;  real.  So by then a lookup finds, and a miss is a mistake.
 
 ; The pools are settled by the time anything looks a string up, so a
 ; miss is a mistake rather than a new entry.
@@ -206,23 +205,6 @@ macro _walk_descs? ref?*, n?*, from?*, to?*, handler?*
     end while
 end macro
 
-; During the collect phase the pools do not exist yet, so a
-; reference contributes its pieces to the string pool and nothing
-; more.  The reference itself is never interned, only the class
-; descriptor, the name and the parameter and return descriptors.
-macro _use_method_ref_types? ref?*, n?*
-    _split_method_ref ref, n
-    _slice __ref_v, __ref_l, ref, n, $00, __ref_arrow
-    _use_type __ref_v, __ref_l
-    if __sphase = $01
-        _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_open
-        _intern __str, add, __ref_v, __ref_l
-    end if
-    _slice __ref_v, __ref_l, ref, n, __ref_close + $01, n
-    _use_type __ref_v, __ref_l
-    _walk_descs ref, n, __ref_open + $01, __ref_close, _use_type
-end macro
-
 ; Split a reference into the descriptors of its signature.
 ;
 ; Two counts come out of this, and they are not the same number.
@@ -291,28 +273,6 @@ macro _ref_shorty?
     end repeat
 end macro
 
-; The shorty a reference implies, interned in the string phase so a
-; prototype registered from it has one to point at.
-macro _use_method_ref_shorty? ref?*, n?*
-    _ref_signature ref, n
-    _ref_shorty
-    _intern __str, add, __shortyv, __shortyl
-end macro
-
-macro _use_method_ref_proto? ref?*, n?*
-    _ref_signature ref, n
-    _lookup_string __pt_s, __ref_rv, __ref_rl
-    _lookup_type __pt_r, __pt_s
-    repeat __ref_n j:$00
-        _lookup_string __pt_s, __ref_pv_#j, __ref_pl_#j
-        _lookup_type __pt_t, __pt_s
-        __ref_p_#j = __pt_t
-    end repeat
-    _ref_shorty
-    _lookup_string __pt_sh, __shortyv, __shortyl
-    _intern_proto __pt_r, __ref_n, __pt_sh
-end macro
-
 ; A method is added the first time something names it, and what
 ; the key packs is kept apart as well.  Whether it is a member of a
 ; class, and its flags and code, are for its declaration to say.
@@ -332,18 +292,32 @@ macro _intern_method? cls?*, nm?*, proto?*
     end if
 end macro
 
-; What a method reference contributes, whichever pool is asking.
-macro _use_method_ref? v?*, l?*
+; What a method reference contributes while the file is collected:
+; its class, name, return and parameter types, its shorty, its
+; prototype and the method itself, each interned where it is first
+; met.  Indices here are the order things were met in; the ranks
+; come once everything is in, in _dex_settle, and _intern_method
+; answers in __method_found which method this was.
+macro _use_method_ref? ref?*, n?*
     if __sphase = $01
-        _use_method_ref_types v, l
-        _use_method_ref_shorty v, l
-    else if __deftype_mode = $02
-        _use_method_ref_types v, l
-    else if __defproto_mode = $02
-        _use_method_ref_proto v, l
-    else if __defmethod_mode = $02
-        _resolve_method_parts v, l
-        _intern_method __ref_class, __ref_name, __ref_proto
+        _split_method_ref ref, n
+        _slice __ref_v, __ref_l, ref, n, $00, __ref_arrow
+        _use_type __ref_v, __ref_l
+        __um_cls = __type_found
+        _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_open
+        _intern __str, add, __ref_v, __ref_l
+        __um_nm = __str_found
+        _ref_signature ref, n
+        _use_type __ref_rv, __ref_rl
+        __um_ret = __type_found
+        repeat __ref_n j:$00
+            _use_type __ref_pv_#j, __ref_pl_#j
+            __ref_p_#j = __type_found
+        end repeat
+        _ref_shorty
+        _intern __str, add, __shortyv, __shortyl
+        _intern_proto __um_ret, __ref_n, __str_found
+        _intern_method __um_cls, __um_nm, __proto_found
     end if
 end macro
 
@@ -422,14 +396,20 @@ macro _resolve_field? ref?*, n?*
     _lookup_field __ref_field, __ref_class, __ref_name, __ref_type
 end macro
 
+; What a field reference contributes while the file is collected:
+; its class, name and type, in __uf_cls, __uf_nm and __uf_ty for
+; deffield, which is the one that keeps them.
 macro _use_field_ref_types? ref?*, n?*
-    _split_field_ref ref, n
-    _slice __ref_v, __ref_l, ref, n, $00, __ref_arrow
-    _use_type __ref_v, __ref_l
     if __sphase = $01
+        _split_field_ref ref, n
+        _slice __ref_v, __ref_l, ref, n, $00, __ref_arrow
+        _use_type __ref_v, __ref_l
+        __uf_cls = __type_found
         _slice __ref_v, __ref_l, ref, n, __ref_arrow + $02, __ref_colon
         _intern __str, add, __ref_v, __ref_l
+        __uf_nm = __str_found
+        _slice __ref_v, __ref_l, ref, n, __ref_colon + $01, n
+        _use_type __ref_v, __ref_l
+        __uf_ty = __type_found
     end if
-    _slice __ref_v, __ref_l, ref, n, __ref_colon + $01, n
-    _use_type __ref_v, __ref_l
 end macro
