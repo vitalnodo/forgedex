@@ -15,6 +15,8 @@
 #    every AXML     chunk sizes, the resource map ascending, each
 #                   element's attributes by resource id and style=
 #                   where the header says it is;
+#    back again     the dex read back into source by disasm.py and
+#                   assembled, which must give the same bytes;
 #    order          the fields and methods of a class, the lists
 #                   handed to dex_lists, the attributes of an
 #                   element: reversed and shuffled, each must give
@@ -255,6 +257,21 @@ def check_order(ex, d, tmpdir):
             fail(f'{ex}: {what} reordered changes {built}')
     return tried
 
+# ── back again ────────────────────────────────────────────
+
+def check_round_trip(ex, d, tmpdir):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import disasm
+    dex = os.path.join(d, 'classes.dex')
+    src = os.path.join(tmpdir, 'back.asm')
+    out = os.path.join(tmpdir, 'back.dex')
+    open(src, 'w').write(disasm.disasm(dex))
+    r = subprocess.run([FASMG, src, out], capture_output=True, text=True, timeout=600)
+    if r.returncode:
+        fail(f'{ex}: its source read back does not assemble')
+    elif open(out, 'rb').read() != open(dex, 'rb').read():
+        fail(f'{ex}: its source read back assembles to other bytes')
+
 # ── all of it ─────────────────────────────────────────────
 
 def main():
@@ -277,6 +294,7 @@ def main():
             for p in axml:
                 for e in check_axml(p):
                     fail(f'{os.path.relpath(p, exdir)}: {e}')
+            check_round_trip(ex, d, tmpdir)
             n = check_order(ex, d, tmpdir)
             print(f'{ex:20} {len(axml)} AXML, {n} reorderings')
     print(f'{len(failures)} failures' if failures else 'verified')
