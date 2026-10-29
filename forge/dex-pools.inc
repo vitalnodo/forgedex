@@ -253,14 +253,12 @@ end macro
 
 __deffield_mode   = $00
 __deffield_index  = $00
-__field_n  = $00
+__field_n         = $00
 
 macro deffield? ref?*, flags?
     if (__sphase = $01) | (__deftype_mode = $02)
         _ref_pair ref
         _use_field_ref_types __rf_v, __rf_l
-    else if __deffield_mode = $04
-        __deffield_index = __deffield_index + $01
     else if __deffield_mode = $02
         _ref_pair ref
         _resolve_field_parts __rf_v, __rf_l
@@ -279,14 +277,6 @@ macro deffield? ref?*, flags?
         end repeat
         __deffield_index = __deffield_index + $01
     end if
-end macro
-
-; The number of fields, known before anything is emitted.
-; Counting them takes no pools.
-macro count_fields?
-    __deffield_index = $00
-    _collect __deffield, $04
-    __field_n = __deffield_index
 end macro
 
 macro emit_field_ids?

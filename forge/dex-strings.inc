@@ -87,8 +87,8 @@ end macro
 ; to, so the walk happens inside a virtual block and the bytes are
 ; dropped.  Every pool does this at least once, some of them twice.
 ;
-; __emitting is deliberately not touched here: count_fields collects
-; without it, and moving it in would change what defclass does.
+; __emitting is deliberately not touched here: every caller sets it
+; first, and moving it in would change what defclass does.
 macro _collect? pool?*, mode?*
     pool#_mode = mode
     virtual at $00
