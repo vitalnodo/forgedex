@@ -103,16 +103,6 @@ macro _ax_ires_attr? name?*
             __ax_id = __axt_i_#k
         end repeat
     end if
-    ;  Ascending resource id, within an element, is not a matter of
-    ;  taste.  The platform resolves an element's attributes with a
-    ;  cursor that only walks forwards, so one written out of turn
-    ;  is stepped over — read, and then not used.  aapt sorts; there
-    ;  is nothing here to sort with, so it is the source that has to
-    ;  be in order, and saying so is the whole point of checking.
-    if __ax_last_id > __ax_id
-        err 'attribute out of order: ', name, ' must come before the one written above it'
-    end if
-    __ax_last_id = __ax_id
     _intern __axr, add, name,, __ax_id
     __ax_idx = __axr_found
 end macro
@@ -128,7 +118,7 @@ end macro
 __ax_phase = $00
 __ax_elem  = $00            ; element ordinal, in visiting order
 __ax_depth = $00
-__ax_last_id = $00          ; the id of the attribute written last
+__axa_open = $00            ; an element's header is waiting for its attributes
 
 ; An index has to become a repeat counter before # can paste it:
 ; the operator joins tokens, not the values behind them.
@@ -139,9 +129,6 @@ macro _ax_open
 end macro
 
 macro element? name?*
-    ;  A fresh element starts the ordering over: the ids have to
-    ;  ascend within an element, not across the file.
-    __ax_last_id = $00
     if __ax_phase = $01
         ;  The raw place in the second pool, not the final index:
         ;  the first pool is still growing as attribute names are
@@ -154,31 +141,99 @@ macro element? name?*
         repeat 1, e:__ax_elem
             __ax_attrs_#e = $00
             __ax_name_#e = __axo_found
+            __ax_kids_#e = $00
         end repeat
+        ;  The element holding this one has had its last attribute.
+        if __ax_depth > $00
+            repeat 1, d:(__ax_depth - $01)
+                repeat 1, p:__ax_stack_#d
+                    __ax_kids_#p = $01
+                end repeat
+            end repeat
+        end if
         __ax_elem = __ax_elem + $01
         __ax_depth = __ax_depth + $01
     else if __ax_phase = $02
+        _ax_flush
         _ax_open
         repeat 1, e:__ax_elem
-            __ax_count_tmp = __ax_attrs_#e
-            __ax_name_tmp  = __axr_n + __ax_name_#e
+            __axa_count = __ax_attrs_#e
+            __axa_name  = __axr_n + __ax_name_#e
         end repeat
         __ax_elem = __ax_elem + $01
         __ax_depth = __ax_depth + $01
+        __axa_open = $01
+        __axa_n = $00
+        __axa_style_at = -$01
+    end if
+end macro
+
+;  An element's header and its attributes are written together,
+;  once the attributes are all in: when the next element starts, or
+;  this one ends.  By then they can be put in order, and the header
+;  can say where style= went.
+;
+;  The order is aapt's.  Those with a resource id come first, by
+;  ascending id, and that is not a matter of taste: the platform
+;  resolves an element's attributes with a cursor that only walks
+;  forwards, so one out of turn is stepped over — read, and then not
+;  used.  Those without an id — package=, style= — follow, in the
+;  order they were written.  The platform finds style= through the
+;  index in the header and nothing else.
+macro _ax_flush
+    if __axa_open
+        __axa_open = $00
+        _ax_check_count
+        _order __axa_k_, _key_less, __axa_r_, __axa_o_, __axa_n, \
+            'an attribute is written twice in one element'
+        __axa_style = $00
+        if __axa_style_at >= $00
+            repeat 1, i:__axa_style_at
+                __axa_style = __axa_r_#i + $01
+            end repeat
+        end if
 
         ushort RES_XML_START_ELEMENT
         ushort $10                        ; header size
-        uint   $10 + $14 + $14 * __ax_count_tmp
+        uint   $10 + $14 + $14 * __axa_n
         uint   $01                        ; line number
         uint   $FFFFFFFF                  ; comment: none
         uint   $FFFFFFFF                  ; namespace of the element
-        uint   __ax_name_tmp
+        uint   __axa_name
         ushort $14                        ; where attributes start
         ushort $14                        ; size of one attribute
-        ushort __ax_count_tmp
+        ushort __axa_n
         ushort $00                        ; id attribute index
         ushort $00                        ; class attribute index
-        ushort $00                        ; style attribute index
+        ushort __axa_style                ; style attribute index, from 1
+        repeat __axa_n, r:$00
+            repeat 1, i:__axa_o_#r
+                _ax_emit __axa_ns_#i, __axa_nm_#i, __axa_raw_#i, __axa_ty_#i, __axa_d_#i
+            end repeat
+        end repeat
+    end if
+end macro
+
+;  One attribute, kept until _ax_flush writes them all.  key is the
+;  resource id, or for one without an id a number above every id,
+;  so that it sorts after them and in the order it was written.
+macro _ax_attr? key?*, nsidx?*, nameidx?*, raw?*, type?*, data?*
+    repeat 1, i:__axa_n
+        __axa_k_#i   = key
+        __axa_ns_#i  = nsidx
+        __axa_nm_#i  = nameidx
+        __axa_raw_#i = raw
+        __axa_ty_#i  = type
+        __axa_d_#i   = data
+    end repeat
+    __axa_n = __axa_n + $01
+end macro
+
+;  The count both phases agree on is the one in the first; the
+;  second writes what it was given, so they are checked to match.
+macro _ax_check_count
+    if __axa_n <> __axa_count
+        err 'an element has a different number of attributes on the second walk'
     end if
 end macro
 
@@ -186,6 +241,7 @@ macro end?.element
     if __ax_phase = $01
         __ax_depth = __ax_depth - $01
     else if __ax_phase = $02
+        _ax_flush
         __ax_depth = __ax_depth - $01
         repeat 1, d:__ax_depth
             __ax_elem_tmp = __ax_stack_#d
@@ -211,6 +267,9 @@ macro _ax_count
         __ax_elem_tmp = __ax_stack_#d
     end repeat
     repeat 1, e:__ax_elem_tmp
+        if __ax_kids_#e
+            err 'an attribute has to come before the elements inside the one it belongs to'
+        end if
         __ax_attrs_#e = __ax_attrs_#e + $01
     end repeat
 end macro
@@ -240,7 +299,7 @@ macro attr_str? name?*, value?*
         _ax_ires value
         __ax_v_tmp = __ax_idx
         _ax_ires AXML_NS
-        _ax_emit __ax_idx, __ax_n_tmp, __ax_v_tmp, TYPE_STRING, __ax_v_tmp
+        _ax_attr __ax_id, __ax_idx, __ax_n_tmp, __ax_v_tmp, TYPE_STRING, __ax_v_tmp
     end if
 end macro
 
@@ -255,7 +314,7 @@ macro attr_plain? name?*, value?*
         _ax_ires name
         __ax_n_tmp = __ax_idx
         _ax_ires value
-        _ax_emit $FFFFFFFF, __ax_n_tmp, __ax_idx, TYPE_STRING, __ax_idx
+        _ax_attr ($01 shl $20) + __axa_n, $FFFFFFFF, __ax_n_tmp, __ax_idx, TYPE_STRING, __ax_idx
     end if
 end macro
 
@@ -267,7 +326,7 @@ macro _ax_typed? name?*, type?*, data?*
         _ax_ires_attr name
         __ax_n_tmp = __ax_idx
         _ax_ires AXML_NS
-        _ax_emit __ax_idx, __ax_n_tmp, $FFFFFFFF, type, data
+        _ax_attr __ax_id, __ax_idx, __ax_n_tmp, $FFFFFFFF, type, data
     end if
 end macro
 
@@ -329,7 +388,8 @@ macro attr_style? value?*
         _ax_count
     else if __ax_phase = $02
         _ax_ires "style"
-        _ax_emit $FFFFFFFF, __ax_idx, $FFFFFFFF, TYPE_ATTRIBUTE, value
+        __axa_style_at = __axa_n
+        _ax_attr ($01 shl $20) + __axa_n, $FFFFFFFF, __ax_idx, $FFFFFFFF, TYPE_ATTRIBUTE, value
     end if
 end macro
 

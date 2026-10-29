@@ -51,10 +51,9 @@ macro _layout
             attr_int "layout_height", WRAP_CONTENT
 
             ;  The only view anybody asks for by name.  id is
-            ;  $010100D0, so it sits between textSize and padding
-            ;  rather than at the top where it would read better:
-            ;  attributes are written by ascending resource id or
-            ;  they are not read at all.
+            ;  $010100D0, so it comes out between textSize and
+            ;  padding: attributes are put in ascending resource id
+            ;  or they are not read at all.
             element "TextView"
                 attr_sp  "textSize", 22             ; $01010095
                 attr_ref "id", R_ID_LABEL           ; $010100D0

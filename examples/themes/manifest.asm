@@ -21,14 +21,13 @@ include 'ids.inc'
 include 'list.inc'
 
 
-;  The attributes of an element go in by ascending resource id,
+;  The attributes of an element come out by ascending resource id,
 ;  which is the order aapt writes them in and the order the
 ;  platform reads them back in: it walks an element's attributes
-;  with a cursor that only moves forwards, so one written out of
-;  turn is stepped over and silently lost.  theme is $01010000 —
-;  the very first attribute the framework ever published — so it
-;  has to come before every other attribute here, and putting it
-;  where it reads best is exactly how to lose it.
+;  with a cursor that only moves forwards, so one out of turn is
+;  stepped over and silently lost.  forgeaxml.inc does the sorting;
+;  they are written here in that order anyway, theme first, as it
+;  is $01010000 — the very first attribute the framework published.
 macro _activity? label?*, style?*
     theme_name __ti
     element "activity"

@@ -22,25 +22,13 @@
 ;  resource-chunk constants and, through them, the primitives.
 ; ══════════════════════════════════════════════════════════
 
-; ── The order of attributes is not a matter of taste ──────
+; ── The order of attributes ───────────────────────────────
 ;
 ;  The platform resolves an element's attributes with a cursor that
 ;  only walks forwards, so one written out of turn is read and then
-;  stepped over — the app installs, and the attribute is simply not
-;  there.  aapt sorts; there is nothing here to sort with, so the
-;  source has to be in order:
-;
-;      theme             $01010000
-;      label             $01010001
-;      icon              $01010002
-;      name              $01010003
-;      exported          $01010010
-;      minSdkVersion     $0101020C
-;      targetSdkVersion  $01010270
-;
-;  _ax_ires_attr in forgeaxml.inc checks this and fails the
-;  assembly rather than letting it through.  package= is exempt:
-;  attr_plain carries no resource id, and the check never sees it.
+;  stepped over.  forgeaxml.inc sorts them the way aapt does, by
+;  resource id, so they are written here in whatever order reads
+;  best.
 
 ;  The one block every manifest has, wherever the rest of it comes
 ;  from.  The element and the two attribute names live here so that

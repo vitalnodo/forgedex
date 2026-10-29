@@ -4,8 +4,9 @@
 ;  A dex, a resources.arsc and a binary AXML have almost nothing
 ;  in common, but all three are laid out by writing fields of a
 ;  fixed width and aligning to a boundary, and all three keep
-;  pools of values that are each written once, strings among them
-;  that count their length in UTF-16 units.  That is all this is.
+;  pools of values that are each written once and put in order,
+;  strings among them that count their length in UTF-16 units.
+;  That is all this is.
 ;
 ;  It is included by forgedex.inc, forgeres.inc and forgeaxml.inc
 ;  rather than by anything an example writes.  Before it existed,
@@ -166,6 +167,88 @@ calminstruction _intern? pool*, miss*, value*, len, payload
   done:
     arrange sym, pool#=_found
     publish sym, found
+end calminstruction
+
+; ── Ordering ──────────────────────────────────────────────
+
+; One sort for every pool — the dex's, strings among them, and the
+; attributes of an AXML element: binary insertion over
+; entries 0 to n-1, leaving the entry at position r in ord#r and the
+; position of entry e in rank#e.  `less result, keys, x, y` answers
+; whether entry x of the pool named by keys goes before entry y;
+; it is the only part that knows what an entry is.  Insertion keeps
+; the comparisons to a binary search per entry, and pays for it in
+; plain integer moves.
+;
+; fasmg's # joins tokens rather than values, so reaching an entry
+; through a computed index means turning that value into a repeat
+; counter first, hence the repeat 1s.
+;
+; Neighbours that are not strictly in order are two equal entries,
+; or a slip in the insertion, and either way the error is `what`.
+; Two equal keys would take one position between them and leave
+; another unfilled, which surfaces as a missing symbol well away
+; from the cause, so they are caught here.
+macro _order? keys?*, less?*, rank?*, ord?*, n?*, what?*
+    __order_m = $00
+    repeat n i:$00
+        __order_lo = $00
+        __order_hi = __order_m
+        while __order_lo < __order_hi
+            __order_mid = (__order_lo + __order_hi) / $02
+            repeat 1 mid:__order_mid
+                repeat 1 k:ord#mid
+                    less __order_lt, keys, k, i
+                end repeat
+            end repeat
+            if __order_lt
+                __order_lo = __order_mid + $01
+            else
+                __order_hi = __order_mid
+            end if
+        end while
+        __order_j = __order_m
+        while __order_j > __order_lo
+            repeat 1 a:__order_j, b:__order_j - $01
+                ord#a = ord#b
+            end repeat
+            __order_j = __order_j - $01
+        end while
+        repeat 1 a:__order_lo
+            ord#a = i
+        end repeat
+        __order_m = __order_m + $01
+    end repeat
+    if n > $01
+        repeat n - $01 r:$00, r1:$01
+            repeat 1 x:ord#r, y:ord#r1
+                less __order_lt, keys, x, y
+                if ~ __order_lt
+                    err what
+                end if
+            end repeat
+        end repeat
+    end if
+    repeat n r:$00
+        repeat 1 e:ord#r
+            rank#e = r
+        end repeat
+    end repeat
+end macro
+
+; _order's `less` for a pool of numeric keys, keys#0 onwards.
+calminstruction _key_less? result*, keys*, x*, y*
+    local sym, a, b, r
+    arrange sym, keys#x
+    compute a, sym
+    arrange sym, keys#y
+    compute b, sym
+    compute r, 0
+    check a < b
+    jno fin
+    compute r, 1
+  fin:
+    publish result, r
 end calminstruction
 
 ; ── UTF-16 length ─────────────────────────────────────────
