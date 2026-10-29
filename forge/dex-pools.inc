@@ -281,9 +281,8 @@ macro deffield? ref?*, flags?
     end if
 end macro
 
-; Whether the file has any fields decides whether it carries a
-; field_ids section at all, and the header needs to know before
-; anything is emitted.  Counting them takes no pools.
+; The number of fields, known before anything is emitted.
+; Counting them takes no pools.
 macro count_fields?
     __deffield_index = $00
     _collect __deffield, $04
