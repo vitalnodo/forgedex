@@ -381,7 +381,7 @@ end macro
 
 __defproto_mode   = $00     ; 0 emit ids, 1 emit type lists, 2 collect
 __defproto_index  = $00
-__defproto_count  = $00
+__proto_n  = $00
 __defproto_maxpar = $00
 
 macro defproto? base?*, return?*, params?
@@ -410,7 +410,7 @@ macro defproto? base?*, return?*, params?
         _lookup_string __pt_sh, __shortyv, __shortyl
         _intern_proto __pt_r, __ref_n, __pt_sh
         repeat 1 i:__defproto_index
-            __pdecl_#i = __pfound
+            __pdecl_#i = __proto_found
         end repeat
         __defproto_index = __defproto_index + $01
     else if __defproto_mode = $03
@@ -426,12 +426,12 @@ end macro
 
 macro emit_proto_ids?
     __emitting = $00
-    __defproto_count = $00
+    __proto_n = $00
     __defproto_maxpar = $00
     __defproto_index = $00
     _collect __defproto, $02
 
-    repeat __defproto_count k:$00
+    repeat __proto_n k:$00
         __pkey_#k = (__pret_#k) shl ($20 * __defproto_maxpar)
         __psig_#k = $00
         repeat __defproto_maxpar j:$00
@@ -443,12 +443,12 @@ macro emit_proto_ids?
         end repeat
     end repeat
 
-    _order __pkey_, _key_less, __prank_, __pord_, __defproto_count, \
+    _order __pkey_, _key_less, __prank_, __pord_, __proto_n, \
         'two prototypes share a return type and parameter list'
 
-    repeat __defproto_count k:$00
+    repeat __proto_n k:$00
         __pbest = -$01
-        repeat __defproto_count j:$00
+        repeat __proto_n j:$00
             if __psig_#j = __psig_#k
                 if (__pbest = -$01) | (__prank_#j < __pbestrank)
                     __pbest = j
@@ -466,7 +466,7 @@ macro emit_proto_ids?
 
     ; Nothing declares most of these by name, so they are emitted
     ; straight from what was collected.
-    repeat __defproto_count r:$00
+    repeat __proto_n r:$00
         repeat 1 t:__pord_#r
             __pid_#t proto_id_item __pshorty_#t, __pret_#t, __ptlname_#t
         end repeat
@@ -476,7 +476,7 @@ end macro
 ; Lists come out in sorted order, each emitted once by the
 ; prototype that owns it.
 macro emit_proto_type_lists?
-    repeat __defproto_count r:$00
+    repeat __proto_n r:$00
         repeat 1 k:__pord_#r
             if __pcnt_#k = $00
                 __ptlname_#k = $00

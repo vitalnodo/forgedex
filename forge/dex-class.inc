@@ -308,75 +308,39 @@ macro emit_method_ids?
     end repeat
 end macro
 
+; A prototype is its return type and its parameter types, and those
+; pack into one number: the return type, then each parameter type
+; plus one, 32 bits apiece.  The plus one keeps a shorter list from
+; matching a longer one that ends in type 0.  The parameters are
+; read from __ref_p_0 onwards, where every caller has put them.
+macro _proto_key? ret?*, n?*
+    __pk = ret
+    repeat n, j:$00
+        __pk = __pk or ((__ref_p_#j + $01) shl ($20 * (j + $01)))
+    end repeat
+end macro
+
 ; A prototype is added the first time something names its
-; signature.  Matching is on the return type and the parameter
-; types, so two references to the same signature give one entry.
-calminstruction _intern_proto? ret*, n*, shorty*
-    local k, cnt, sym, v, w, j, r, nn, sh
-    compute r, ret
-    compute nn, n
-    compute sh, shorty
-    arrange sym, =__defproto_count
-    compute cnt, sym
-    compute k, 0
-  scan:
-    check k < cnt
-    jno add
-    arrange sym, =__pret_#k
-    compute v, sym
-    check v = r
-    jno step
-    arrange sym, =__pcnt_#k
-    compute v, sym
-    check v = nn
-    jno step
-    compute j, 0
-  pscan:
-    check j < nn
-    jno done
-    arrange sym, =__pp_#k#=_#j
-    compute v, sym
-    arrange sym, =__ref_p_#j
-    compute w, sym
-    check v = w
-    jno step
-    compute j, j + 1
-    jump pscan
-  step:
-    compute k, k + 1
-    jump scan
-  add:
-    arrange sym, =__pret_#cnt
-    publish sym, r
-    arrange sym, =__pcnt_#cnt
-    publish sym, nn
-    arrange sym, =__pshorty_#cnt
-    publish sym, sh
-    compute j, 0
-  copy:
-    check j < nn
-    jno bump
-    arrange sym, =__ref_p_#j
-    compute v, sym
-    arrange sym, =__pp_#cnt#=_#j
-    publish sym, v
-    compute j, j + 1
-    jump copy
-  bump:
-    compute k, cnt
-    compute cnt, cnt + 1
-    arrange sym, =__defproto_count
-    publish sym, cnt
-    arrange sym, =__defproto_maxpar
-    compute v, sym
-    check nn > v
-    jno done
-    arrange sym, =__defproto_maxpar
-    publish sym, nn
-  done:
-    arrange sym, =__pfound
-    publish sym, k
-end calminstruction
+; signature, so two references to the same signature give one
+; entry.  Its parts are kept beside it for the sort and the items.
+macro _intern_proto? ret?*, n?*, shorty?*
+    _proto_key ret, n
+    __ip_n = __proto_n
+    _intern __proto, add, __pk
+    if __proto_n > __ip_n
+        repeat 1, k:__proto_found
+            __pret_#k = ret
+            __pcnt_#k = n
+            __pshorty_#k = shorty
+            repeat n, j:$00
+                __pp_#k#_#j = __ref_p_#j
+            end repeat
+        end repeat
+        if n > __defproto_maxpar
+            __defproto_maxpar = n
+        end if
+    end if
+end macro
 
 ; The shorty of a signature: the return character then one per
 ; parameter, an L standing for any reference or array.

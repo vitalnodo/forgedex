@@ -155,52 +155,13 @@ calminstruction _desc_end? result*, v*, l*, at*
     publish sym, i
 end calminstruction
 
-calminstruction _lookup_proto? result*, ret*, n*
-    local k, cnt, sym, v, w, found, r, nn, j
-    compute r, ret
-    compute nn, n
-    arrange sym, =__defproto_count
-    compute cnt, sym
-    compute k, 0
-    compute found, -1
-  scan:
-    check k < cnt
-    jno done
-    arrange sym, =__pret_#k
-    compute v, sym
-    check v = r
-    jno step
-    arrange sym, =__pcnt_#k
-    compute v, sym
-    check v = nn
-    jno step
-    compute j, 0
-  pscan:
-    check j < nn
-    jno hit
-    arrange sym, =__pp_#k#=_#j
-    compute v, sym
-    arrange sym, =__ref_p_#j
-    compute w, sym
-    check v = w
-    jno step
-    compute j, j + 1
-    jump pscan
-  hit:
-    arrange sym, =__prank_#k
-    compute found, sym
-    jump done
-  step:
-    compute k, k + 1
-    jump scan
-  done:
-    check found >= 0
-    jyes ok
-    err "no prototype is declared with this signature"
-  ok:
-    arrange sym, result
-    publish sym, found
-end calminstruction
+macro _lookup_proto? result?*, ret?*, n?*
+    _proto_key ret, n
+    _find_ranked result, __proto, __prank_, __pk
+    if result < $00
+        err 'no prototype is declared with this signature'
+    end if
+end macro
 
 macro _lookup_method? result?*, cls?*, nm?*, proto?*
     _find_ranked result, __method, __mrank_, \
