@@ -208,8 +208,9 @@ end macro
 ; bits.  Handing the literal to dd rather than shifting it apart
 ; here keeps 24.0 written as 24.0 instead of as $41C00000.
 macro const_float? a?*, lit?*
-    _use_reg a, $08, 'register'
-    dw (a shl 8) or $14
+    local ra
+    _reg ra, a, $08, 'register'
+    dw (ra shl 8) or $14
     dd lit
 end macro
 
@@ -596,9 +597,10 @@ end macro
 
 ; 31t: a register and a 32-bit offset to the table.
 macro _pl_31t? op?*, a?*, s?*
-    _use_reg a, $08, 'register'
+    local ra
+    _reg ra, a, $08, 'register'
     __pl_off = (__payload_#s - __pl_at_#s) shr $01
-    dw (a shl 8) or op, __pl_off and $FFFF, (__pl_off shr $10) and $FFFF
+    dw (ra shl 8) or op, __pl_off and $FFFF, (__pl_off shr $10) and $FFFF
 end macro
 
 macro packed_switch? a?*, first?*, targets?*&

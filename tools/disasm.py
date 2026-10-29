@@ -141,8 +141,10 @@ class Dex:
 
 # ── Code ──────────────────────────────────────────────────
 
+# Registers have names up to v255; one past them is written from v0,
+# the way the assembler takes it.
 def reg(n):
-    return f'v{n}' if n < 256 else str(n)
+    return f'v{n}' if n < 256 else f'v0 + {n}'
 
 def code(dex, ops, off):
     u = dex.u

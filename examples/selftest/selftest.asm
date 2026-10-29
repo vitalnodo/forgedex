@@ -45,10 +45,11 @@ macro _class
     end method
 
     ;  A frame of 300 registers, so that move/16 has somewhere to go
-    ;  that no byte can name.
+    ;  that no byte can name.  Registers have names up to v255, and
+    ;  one past them is written from v0.
     method "->far(I)I", ACC_PUBLIC or ACC_STATIC, locals 300
-        move_16        280, p0
-        move_16        0, 280
+        move_16        v0 + 280, p0
+        move_16        v0, v0 + 280
         return         v0
     end method
 

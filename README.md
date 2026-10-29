@@ -41,9 +41,11 @@ Two more formats are forged the same way. `forgeaxml.inc` writes the binary
   type, the prototype and the method reference. Nothing is numbered by hand, and
   the pools come out sorted as the format requires.
 * **Branches go to labels.** `if_eq v5, v1, .plus`, not a counted offset.
-* **Registers have names.** `v0`–`v255` are constants; a method's parameters are
-  `p0`, `p1`, … and the assembler works out which registers those are from the
-  frame size and the signature.
+* **Registers have names, and a type.** `v0`–`v255` and a method's parameters
+  `p0`, `p1`, … are registers, not numbers: the assembler works out which
+  registers the `p` names are from the frame size and the signature, and
+  `move v1, 3` or `const_4 v0, v1` is an error instead of meaning something
+  else. A register past `v255` is written from `v0`, as `v0 + 280`.
 * **The frame is checked.** `outs_size` is derived from the invokes in the body,
   and a register outside `registers_size` is an error rather than a corrupt dex.
 * **Widths are checked.** fasmg's `db`/`dw`/`dd` widen a too-large value instead

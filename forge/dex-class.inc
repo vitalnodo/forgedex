@@ -302,7 +302,7 @@ macro method? ref?*, flags?*, frame?*
         end if
     end repeat
     repeat __m_ins i:$00
-        p#i = __m_regs - __m_ins + i
+        p#i = __vreg + __m_regs - __m_ins + i
     end repeat
     __max_reg = -$01
     __max_outs = $00

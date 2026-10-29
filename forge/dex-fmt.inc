@@ -19,17 +19,21 @@
 ; ══════════════════════════════════════════════════════════
 
 ;
-;  v0..v255 covers every format that holds a register in a byte
-;  (11x, 21c, 22b).  Formats with a nibble field (11n, 22c, 35c)
-;  are limited to v0..v15, which the format macros enforce.  The
-;  few that reach past 255 — 22x and 32x, and the ranges of 3rc —
-;  take the register as a number, the way p0 already is one.
+;  A register is not a number.  v0 … v255 and p0 … are values of
+;  their own kind, __vreg plus the register's number, so an operand
+;  says what it is: `move v1, 3` is an error rather than a move from
+;  v3, and `const_4 v0, v1` is an error rather than a load of 1.
+;  The nibble formats (11n, 22c, 35c) reach v0 … v15 and the byte
+;  ones v0 … v255; the few that reach further — 22x and 32x, and the
+;  ranges of 3rc — take v0 + n for a register past the names.
 ;
 ;  Defined with := so that assigning to a register name is an
 ;  error rather than a silent redefinition.
 
+element __vreg?
+
 repeat $100 i:$00
-    v#i := i
+    v#i := __vreg + i
 end repeat
 
 
@@ -56,10 +60,17 @@ end repeat
 __max_reg = -$01
 __max_outs = $00
 
-macro _use_reg? value?*, bits?*, what?*
-    _chk_u value, bits, what
-    if (value) > __max_reg
-        __max_reg = (value)
+; The register an operand names, as the number an instruction
+; field holds.  Anything that is not a register stops here, whatever
+; it would have fitted in.
+macro _reg? result?*, value?*, bits?*, what?*
+    if ~ (value) relativeto __vreg
+        err what, ' expected: v0 … or p0 …, not a number'
+    end if
+    result = (value) - __vreg
+    _chk_u result, bits, what
+    if result > __max_reg
+        __max_reg = result
     end if
 end macro
 
@@ -73,11 +84,18 @@ end macro
 ; layout, so the format macros stay unaware and each opcode's own
 ; wrapper widens the ones it knows about.  Raising __max_reg twice
 ; for the same register is harmless — it only ever moves up.
-macro _use_reg_wide? value?*, bits?*, what?*
-    _chk_u value, bits, what
-    if (value) + $01 > __max_reg
-        __max_reg = (value) + $01
+macro _reg_wide? result?*, value?*, bits?*, what?*
+    _reg result, value, bits, what
+    if result + $01 > __max_reg
+        __max_reg = result + $01
     end if
+end macro
+
+; The same check, for a wrapper that only has to say which of its
+; operands are pairs and leaves the encoding to the format.
+macro _use_reg_wide? value?*, bits?*, what?*
+    local r
+    _reg_wide r, value, bits, what
 end macro
 
 macro _branch_delta? result?*, target?*
@@ -121,14 +139,16 @@ macro __fmt_30t? op?*, target?*
 end macro
 
 macro __fmt_11x? op?*, a?*
-    _use_reg a, $08, 'register'
-    dw (a shl 8) or op
+    local ra
+    _reg ra, a, $08, 'register'
+    dw (ra shl 8) or op
 end macro
 
 macro __fmt_11n? op?*, a?*, lit?*
-    _use_reg a, $04, 'register'
+    local ra
+    _reg ra, a, $04, 'register'
     _chk_s lit, $04, 'literal'
-    dw ((lit and $0F) shl 12) or (a shl 8) or op
+    dw ((lit and $0F) shl 12) or (ra shl 8) or op
 end macro
 
 ; 12x: two registers, both in one nibble each.  This is the only
@@ -137,23 +157,26 @@ end macro
 ; literal, which cannot express an accumulator like birdY += velY
 ; where both sides change every frame.
 macro __fmt_12x? op?*, a?*, b?*
-    _use_reg a, $04, 'register'
-    _use_reg b, $04, 'register'
-    dw (b shl 12) or (a shl 8) or op
+    local ra, rb
+    _reg ra, a, $04, 'register'
+    _reg rb, b, $04, 'register'
+    dw (rb shl 12) or (ra shl 8) or op
 end macro
 
 macro __fmt_21c? op?*, a?*, idx?*
-    _use_reg a, $08, 'register'
+    local ra
+    _reg ra, a, $08, 'register'
     _chk_u idx, $10, 'pool index'
-    dw (a shl 8) or op, idx
+    dw (ra shl 8) or op, idx
 end macro
 
 ; 21s: a register and a signed 16-bit literal, sign-extended to 32
 ; or 64 bits by the opcode.
 macro __fmt_21s? op?*, a?*, lit?*
-    _use_reg a, $08, 'register'
+    local ra
+    _reg ra, a, $08, 'register'
     _chk_s lit, $10, 'literal'
-    dw (a shl 8) or op, (lit) and $FFFF
+    dw (ra shl 8) or op, (lit) and $FFFF
 end macro
 
 ; 21h: a register and the top 16 bits of a literal whose other bits
@@ -162,70 +185,78 @@ end macro
 ; three.  The literal may be written as the bits themselves or as a
 ; negative number, so both $BF800000 and -$40800000 are -1.0f.
 macro __fmt_21h? op?*, a?*, lit?*, shift?*
-    _use_reg a, $08, 'register'
+    local ra
+    _reg ra, a, $08, 'register'
     if (lit) and (($01 shl (shift)) - $01)
         err 'only the top 16 bits of this literal may be set'
     end if
     if ~ ((((lit) shr (shift)) >= -$8000) & (((lit) shr (shift)) <= $FFFF))
         err 'literal out of range'
     end if
-    dw (a shl 8) or op, ((lit) shr (shift)) and $FFFF
+    dw (ra shl 8) or op, ((lit) shr (shift)) and $FFFF
 end macro
 
 macro __fmt_21t? op?*, a?*, target?*
+    local ra
     local delta
-    _use_reg a, $08, 'register'
+    _reg ra, a, $08, 'register'
     _branch_delta delta, target
     _chk_s delta, $10, 'branch offset'
-    dw (a shl 8) or op, delta
+    dw (ra shl 8) or op, delta
 end macro
 
 macro __fmt_22c? op?*, a?*, b?*, idx?*
-    _use_reg a, $04, 'register'
-    _use_reg b, $04, 'register'
+    local ra, rb
+    _reg ra, a, $04, 'register'
+    _reg rb, b, $04, 'register'
     _chk_u idx, $10, 'pool index'
-    dw (b shl 12) or (a shl 8) or op, idx
+    dw (rb shl 12) or (ra shl 8) or op, idx
 end macro
 
 macro __fmt_22t? op?*, a?*, b?*, target?*
+    local ra, rb
     local delta
-    _use_reg a, $04, 'register'
-    _use_reg b, $04, 'register'
+    _reg ra, a, $04, 'register'
+    _reg rb, b, $04, 'register'
     _branch_delta delta, target
     _chk_s delta, $10, 'branch offset'
-    dw (b shl 12) or (a shl 8) or op, delta
+    dw (rb shl 12) or (ra shl 8) or op, delta
 end macro
 
 macro __fmt_22b? op?*, a?*, b?*, lit?*
-    _use_reg a, $08, 'register'
-    _use_reg b, $08, 'register'
+    local ra, rb
+    _reg ra, a, $08, 'register'
+    _reg rb, b, $08, 'register'
     _chk_s lit, $08, 'literal'
-    dw (a shl 8) or op, ((lit and $FF) shl 8) or b
+    dw (ra shl 8) or op, ((lit and $FF) shl 8) or rb
 end macro
 
 ; 22s: two registers in a nibble each and a signed 16-bit literal,
 ; the lit16 arithmetic.
 macro __fmt_22s? op?*, a?*, b?*, lit?*
-    _use_reg a, $04, 'register'
-    _use_reg b, $04, 'register'
+    local ra, rb
+    _reg ra, a, $04, 'register'
+    _reg rb, b, $04, 'register'
     _chk_s lit, $10, 'literal'
-    dw (b shl 12) or (a shl 8) or op, (lit) and $FFFF
+    dw (rb shl 12) or (ra shl 8) or op, (lit) and $FFFF
 end macro
 
 ; 32x: two registers of a full word each — a move between any two
 ; registers of the frame, however high.
 macro __fmt_32x? op?*, a?*, b?*
-    _use_reg a, $10, 'register'
-    _use_reg b, $10, 'source register'
-    dw op, a, b
+    local ra, rb
+    _reg ra, a, $10, 'register'
+    _reg rb, b, $10, 'source register'
+    dw op, ra, rb
 end macro
 
 ; 31c: a register and a pool index of 32 bits, for a string past the
 ; first 65536.
 macro __fmt_31c? op?*, a?*, idx?*
-    _use_reg a, $08, 'register'
+    local ra
+    _reg ra, a, $08, 'register'
     _chk_u idx, $20, 'pool index'
-    dw (a shl 8) or op, (idx) and $FFFF, ((idx) shr $10) and $FFFF
+    dw (ra shl 8) or op, (idx) and $FFFF, ((idx) shr $10) and $FFFF
 end macro
 
 ; 22x: a destination in a byte and a source in a full word, which
@@ -234,9 +265,10 @@ end macro
 ; frame, out of reach of the 12x and 22c formats, so the body copies
 ; them down before it starts.
 macro __fmt_22x? op?*, a?*, b?*
-    _use_reg a, $08, 'register'
-    _use_reg b, $10, 'source register'
-    dw (a shl 8) or op, b
+    local ra, rb
+    _reg ra, a, $08, 'register'
+    _reg rb, b, $10, 'source register'
+    dw (ra shl 8) or op, rb
 end macro
 
 ; 23x: three registers, a byte each.  This is what a binary
@@ -244,18 +276,20 @@ end macro
 ; time and the result goes somewhere else — shifting by a value
 ; that is itself computed, for instance.
 macro __fmt_23x? op?*, a?*, b?*, c?*
-    _use_reg a, $08, 'register'
-    _use_reg b, $08, 'register'
-    _use_reg c, $08, 'register'
-    dw (a shl 8) or op, (c shl 8) or b
+    local ra, rb, rc
+    _reg ra, a, $08, 'register'
+    _reg rb, b, $08, 'register'
+    _reg rc, c, $08, 'register'
+    dw (ra shl 8) or op, (rc shl 8) or rb
 end macro
 
 ; 31i: a register and a full 32-bit literal, which is how a colour
 ; or a float constant is written.
 macro __fmt_31i? op?*, a?*, lit?*
-    _use_reg a, $08, 'register'
+    local ra
+    _reg ra, a, $08, 'register'
     _chk_u (lit) and $FFFFFFFF, $20, 'literal'
-    dw (a shl 8) or op, (lit) and $FFFF, ((lit) shr $10) and $FFFF
+    dw (ra shl 8) or op, (lit) and $FFFF, ((lit) shr $10) and $FFFF
 end macro
 
 ; 51l: a register pair and a full 64-bit literal — the only way to
@@ -263,13 +297,14 @@ end macro
 ; than taken apart here, so an integer arrives as an integer and
 ; 4.0 arrives as the IEEE-754 double the arithmetic expects.
 macro __fmt_51l? op?*, a?*, lit?*
-    _use_reg_wide a, $08, 'wide register'
-    dw (a shl 8) or op
+    local ra
+    _reg_wide ra, a, $08, 'wide register'
+    dw (ra shl 8) or op
     dq lit
 end macro
 
 macro __fmt_35c? op?*, idx?*, regs?&
-    local count?, c?, d?, e?, f?, g?
+    local count?, r?, c?, d?, e?, f?, g?
     c? = 0
     d? = 0
     e? = 0
@@ -282,21 +317,21 @@ macro __fmt_35c? op?*, idx?*, regs?&
     match any?, regs
         iterate reg?, regs
             count? = count? + 1
-            _use_reg reg, $04, 'argument register'
+            _reg r?, reg, $04, 'argument register'
             match =1, %
-                c? = reg
+                c? = r?
             end match
             match =2, %
-                d? = reg
+                d? = r?
             end match
             match =3, %
-                e? = reg
+                e? = r?
             end match
             match =4, %
-                f? = reg
+                f? = r?
             end match
             match =5, %
-                g? = reg
+                g? = r?
             end match
         end iterate
     end match
@@ -319,18 +354,18 @@ end macro
 ; A wide argument still occupies two of the run; naming the last
 ; register covers it without the caller saying so.
 macro __fmt_3rc? op?*, idx?*, first?*, last?*
-    local count?
+    local count?, rf?, rl?
     _chk_u idx, $10, 'pool index'
-    _use_reg first, $10, 'first argument register'
-    _use_reg last, $10, 'last argument register'
-    if (last) < (first)
+    _reg rf?, first, $10, 'first argument register'
+    _reg rl?, last, $10, 'last argument register'
+    if rl? < rf?
         err 'the argument range ends before it starts'
     end if
-    count? = (last) - (first) + $01
+    count? = rl? - rf? + $01
     _chk_u count?, $08, 'argument count'
     if count? > __max_outs
         __max_outs = count?
     end if
-    dw (count? shl 8) or op, idx, first
+    dw (count? shl 8) or op, idx, rf?
 end macro
  

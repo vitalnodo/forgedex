@@ -36,12 +36,18 @@ macro _assert_unsigned? list?*&
 end macro
 
 macro _chk_u? value?*, bits?*, what?*
+    if ~ (value) relativeto $00
+        err what, ' expected: a number, not a register'
+    end if
     if ~ ((value) >= $00 & (value) <= (($01 shl (bits)) - $01))
         err what, ' out of range'
     end if
 end macro
 
 macro _chk_s? value?*, bits?*, what?*
+    if ~ (value) relativeto $00
+        err what, ' expected: a number, not a register'
+    end if
     if ~ ((value) >= -($01 shl ((bits) - $01)) & (value) <= (($01 shl ((bits) - $01)) - $01))
         err what, ' out of range'
     end if
