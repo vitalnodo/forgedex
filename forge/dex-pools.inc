@@ -253,7 +253,7 @@ end macro
 
 __deffield_mode   = $00
 __deffield_index  = $00
-__deffield_count  = $00
+__field_n  = $00
 
 macro deffield? ref?*, flags?
     if (__sphase = $01) | (__deftype_mode = $02)
@@ -275,7 +275,7 @@ macro deffield? ref?*, flags?
             __fcls_#k = __ref_class
             __fnm_#k  = __ref_name
             __fty_#k  = __ref_type
-            __fkey_#k = (__ref_class shl $40) or (__ref_name shl $20) or __ref_type
+            __field_v_#k = (__ref_class shl $40) or (__ref_name shl $20) or __ref_type
         end repeat
         __deffield_index = __deffield_index + $01
     end if
@@ -286,22 +286,22 @@ end macro
 macro count_fields?
     __deffield_index = $00
     _collect __deffield, $04
-    __deffield_count = __deffield_index
+    __field_n = __deffield_index
 end macro
 
 macro emit_field_ids?
     __emitting = $00
     __deffield_index = $00
     _collect __deffield, $02
-    __deffield_count = __deffield_index
-    _order __fkey_, _key_less, __frank_, __ford_, __deffield_count, \
+    __field_n = __deffield_index
+    _order __field_v_, _key_less, __frank_, __ford_, __field_n, \
         'two fields share a class, a name and a type'
     ; Everything the item needs was recorded while collecting, so the
     ; items come straight out of that in rank order — the same as the
     ; type and method pools do it.  Reaching them by walking the lists
     ; again, once per field, is what this used to do.
     __emitting = $01
-    repeat __deffield_count r:$00
+    repeat __field_n r:$00
         repeat 1 t:__ford_#r
             __fid_#t field_id_item __fcls_#t, __fty_#t, __fnm_#t
         end repeat
@@ -322,7 +322,7 @@ end macro
 ;  Sorted by class, then name, then prototype.
 
 __defmethod_mode   = $00
-__defmethod_count  = $00
+__method_n  = $00
 
 ; A method the pool should carry that nothing calls.
 ; A method with no code of its own: one the pool should carry that
@@ -336,7 +336,7 @@ macro defmethod? ref?*, flags?
         if __defmethod_mode = $02
             match , flags
             else
-                repeat 1 k:__mfound
+                repeat 1 k:__method_found
                     __mmember_#k = $01
                     __mflags_#k = flags
                     __mcode_#k = $00

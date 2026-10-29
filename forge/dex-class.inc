@@ -51,7 +51,7 @@ end macro
 macro _cd_count_fields? result?*, want_static?*
     local d
     result = $00
-    repeat __deffield_count k:$00
+    repeat __field_n k:$00
         if __fmember_#k & (__fcls_#k = __cd_cls)
             d = $00
             if (__fflags_#k and ACC_STATIC)
@@ -67,7 +67,7 @@ end macro
 macro _cd_count_methods? result?*, want_direct?*
     local d
     result = $00
-    repeat __defmethod_count k:$00
+    repeat __method_n k:$00
         if __mmember_#k & (__mcls_#k = __cd_cls)
             _cd_is_direct d, k
             if d = want_direct
@@ -83,8 +83,8 @@ end macro
 macro _cd_emit_fields? want_static?*
     local d, diff
     _enc_group_start
-    repeat __deffield_count r:$00
-        repeat __deffield_count k:$00
+    repeat __field_n r:$00
+        repeat __field_n k:$00
             if (__frank_#k = r) & __fmember_#k & (__fcls_#k = __cd_cls)
                 d = $00
                 if (__fflags_#k and ACC_STATIC)
@@ -103,8 +103,8 @@ end macro
 macro _cd_emit_methods? want_direct?*
     local d, diff
     _enc_group_start
-    repeat __defmethod_count r:$00
-        repeat __defmethod_count k:$00
+    repeat __method_n r:$00
+        repeat __method_n k:$00
             if (__mrank_#k = r) & __mmember_#k & (__mcls_#k = __cd_cls)
                 _cd_is_direct d, k
                 if d = want_direct
@@ -122,8 +122,8 @@ struc defclassdata? k?*
     local nsf, nif, ndm, nvm
     _lookup_string __cd_s, __clsv_#k, __clsl_#k
     _lookup_type __cd_cls, __cd_s
-    _find_string __cd_init, "<init>", $06
-    _find_string __cd_clinit, "<clinit>", $08
+    _find_ranked __cd_init, __str, __srank_, "<init>", $06
+    _find_ranked __cd_clinit, __str, __srank_, "<clinit>", $08
     _cd_count_fields  nsf, $01
     _cd_count_fields  nif, $00
     _cd_count_methods ndm, $01
@@ -243,11 +243,11 @@ macro method? ref?*, flags?*, frame?*
     if __code_phase
         _resolve_method_parts __m_v, __m_l
         _intern_method __ref_class, __ref_name, __ref_proto
-        __m_k = __mfound
+        __m_k = __method_found
     else
         _use_method_ref __m_v, __m_l
         if __defmethod_mode = $02
-            __m_k = __mfound
+            __m_k = __method_found
             repeat 1 k:__m_k
                 __mmember_#k = $01
                 __mflags_#k = flags
@@ -293,15 +293,15 @@ end macro
 
 macro emit_method_ids?
     __emitting = $00
-    __defmethod_count = $00
+    __method_n = $00
     _collect __defmethod, $02
-    _order __mkey_, _key_less, __mrank_, __mord_, __defmethod_count, \
+    _order __method_v_, _key_less, __mrank_, __mord_, __method_n, \
         'two methods share a class, a name and a prototype'
     ; No naming pass here, unlike the prototypes: a method is reached
     ; by its reference rather than by a name given to a declaration,
     ; so there is nothing left to bind once the ranks are in.
     __emitting = $01
-    repeat __defmethod_count r:$00
+    repeat __method_n r:$00
         repeat 1 t:__mord_#r
             __mid_#t method_id_item __mcls_#t, __mpr_#t, __mnm_#t
         end repeat

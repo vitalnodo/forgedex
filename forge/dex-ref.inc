@@ -43,24 +43,10 @@
 ;  from the point of use would mean walking the method bodies
 ;  during the collect phase, which is a larger change.
 
-; A string's rank, its place in the sorted pool rather than where it
-; was added; a miss answers -1.  _lookup_string below is this with the
-; miss made fatal.
-macro _find_string? result?*, value?*, len?*
-    _intern __str, find, value, len
-    if __str_found < $00
-        result = -1
-    else
-        repeat 1, e:__str_found
-            result = __srank_#e
-        end repeat
-    end if
-end macro
-
 ; The pools are settled by the time anything looks a string up, so a
 ; miss is a mistake rather than a new entry.
 macro _lookup_string? result?*, value?*, len?*
-    _find_string result, value, len
+    _find_ranked result, __str, __srank_, value, len
     if result < $00
         err 'no string in the pool matches this text'
     end if
@@ -68,43 +54,28 @@ end macro
 
 ; ── Finding an entry in a ranked pool ─────────────────────
 ;
-;  type_ids, field_ids and method_ids are each a table of keys with a
-;  table of ranks beside it, and finding an entry is the same scan in
-;  all three: walk the keys, answer the rank that sits at the same
-;  index.  The tables differ only in their names, and a name is a
-;  token, so it can be an argument — `keys#=_#k` composes __type_v_3
-;  the same way the specialised versions used to spell it out.
+;  Every sorted pool — strings, types, fields, methods — keeps a
+;  table of ranks beside its entries, and finding an entry is the
+;  same in all of them: _intern finds where it was added, and the
+;  rank at that index is where the sort put it.  A miss answers -1.
+;  len is for the string pool, the one whose entries keep a length.
 ;
 ;  A key is one integer even when it names three things: the callers
 ;  below pack class, name and prototype into one, major part first,
 ;  so a single comparison covers the whole reference.
-calminstruction _find_ranked? result*, keys*, ranks*, count*, key*
-    local k, n, sym, v, found, want
-    compute want, key
-    arrange sym, count
-    compute n, sym
-    compute k, 0
-    compute found, -1
-  scan:
-    check k < n
-    jno done
-    arrange sym, keys#=_#k
-    compute v, sym
-    check v = want
-    jno step
-    arrange sym, ranks#=_#k
-    compute found, sym
-    jump done
-  step:
-    compute k, k + 1
-    jump scan
-  done:
-    arrange sym, result
-    publish sym, found
-end calminstruction
+macro _find_ranked? result?*, pool?*, rank?*, key?*, len?
+    _intern pool, find, key, len
+    if pool#_found < $00
+        result = -1
+    else
+        repeat 1, e:pool#_found
+            result = rank#e
+        end repeat
+    end if
+end macro
 
 macro _lookup_type? result?*, sidx?*
-    _find_ranked result, __type_v, __trank, __type_n, sidx
+    _find_ranked result, __type, __trank_, sidx
     if result < $00
         err 'no type is declared with this descriptor'
     end if
@@ -232,7 +203,7 @@ calminstruction _lookup_proto? result*, ret*, n*
 end calminstruction
 
 macro _lookup_method? result?*, cls?*, nm?*, proto?*
-    _find_ranked result, __mkey, __mrank, __defmethod_count, \
+    _find_ranked result, __method, __mrank_, \
         ((cls) shl $40) or ((nm) shl $20) or (proto)
     if result < $00
         err 'no method is declared with this reference'
@@ -381,49 +352,23 @@ macro _use_method_ref_proto? ref?*, n?*
     _intern_proto __pt_r, __ref_n, __pt_sh
 end macro
 
-; A method is added the first time something names it.
-calminstruction _intern_method? cls*, nm*, proto*
-    local k, cnt, sym, v, key, c, n2, p2, z
-    compute c, cls
-    compute n2, nm
-    compute p2, proto
-    compute z, 0
-    compute key, (c shl $40) or (n2 shl $20) or p2
-    arrange sym, =__defmethod_count
-    compute cnt, sym
-    compute k, 0
-  scan:
-    check k < cnt
-    jno add
-    arrange sym, =__mkey_#k
-    compute v, sym
-    check v = key
-    jyes done
-    compute k, k + 1
-    jump scan
-  add:
-    arrange sym, =__mkey_#cnt
-    publish sym, key
-    arrange sym, =__mcls_#cnt
-    publish sym, c
-    arrange sym, =__mnm_#cnt
-    publish sym, n2
-    arrange sym, =__mpr_#cnt
-    publish sym, p2
-    arrange sym, =__mmember_#cnt
-    publish sym, z
-    arrange sym, =__mflags_#cnt
-    publish sym, z
-    arrange sym, =__mcode_#cnt
-    publish sym, z
-    compute k, cnt
-    compute cnt, cnt + 1
-    arrange sym, =__defmethod_count
-    publish sym, cnt
-  done:
-    arrange sym, =__mfound
-    publish sym, k
-end calminstruction
+; A method is added the first time something names it, and what
+; the key packs is kept apart as well.  Whether it is a member of a
+; class, and its flags and code, are for its declaration to say.
+macro _intern_method? cls?*, nm?*, proto?*
+    __im_n = __method_n
+    _intern __method, add, ((cls) shl $40) or ((nm) shl $20) or (proto)
+    if __method_n > __im_n
+        repeat 1, k:__method_found
+            __mcls_#k = cls
+            __mnm_#k = nm
+            __mpr_#k = proto
+            __mmember_#k = $00
+            __mflags_#k = $00
+            __mcode_#k = $00
+        end repeat
+    end if
+end macro
 
 ; What a method reference contributes, whichever pool is asking.
 macro _use_method_ref? v?*, l?*
@@ -482,7 +427,7 @@ end macro
 ;  the type give the field.
 
 macro _lookup_field? result?*, cls?*, nm?*, type?*
-    _find_ranked result, __fkey, __frank, __deffield_count, \
+    _find_ranked result, __field, __frank_, \
         ((cls) shl $40) or ((nm) shl $20) or (type)
     if result < $00
         err 'no field is declared with this reference'
