@@ -85,13 +85,20 @@ end macro
 __axr_n = $00               ; attribute names
 __axo_n = $00               ; all other strings
 
-; An "other" string's place in the written pool is behind all the
-; attribute names, so its index is only known once collecting is
-; over.  These two resolve a name to its final index.
+; A string's place in the written pool is its rank, which is only
+; known once collecting is over: the attribute names by resource id,
+; then everything else in the order dex strings take.  So neither
+; the order attributes are written in nor the order elements come
+; in moves a string.  These two resolve a name to its final index,
+; once there is one.
 
 macro _ax_ires? value?*
-    _intern __axo, add, value
-    __ax_idx = __axr_n + __axo_found
+    _intern __axo, add, value, lengthof value
+    if __ax_phase = $02
+        repeat 1, e:__axo_found
+            __ax_idx = __axr_n + __axo_r_#e
+        end repeat
+    end if
 end macro
 
 macro _ax_ires_attr? name?*
@@ -104,7 +111,11 @@ macro _ax_ires_attr? name?*
         end repeat
     end if
     _intern __axr, add, name,, __ax_id
-    __ax_idx = __axr_found
+    if __ax_phase = $02
+        repeat 1, e:__axr_found
+            __ax_idx = __axr_r_#e
+        end repeat
+    end if
 end macro
 
 ; ── The description, walked twice ─────────────────────────
@@ -134,7 +145,7 @@ macro element? name?*
         ;  the first pool is still growing as attribute names are
         ;  met, so the offset to add is only settled once the walk
         ;  is over.
-        _intern __axo, add, name
+        _intern __axo, add, name, lengthof name
         ; remember which element is open at this depth, so that
         ; attr_* knows whose count to raise
         _ax_open
@@ -158,7 +169,9 @@ macro element? name?*
         _ax_open
         repeat 1, e:__ax_elem
             __axa_count = __ax_attrs_#e
-            __axa_name  = __axr_n + __ax_name_#e
+            repeat 1, k:__ax_name_#e
+                __axa_name = __axr_n + __axo_r_#k
+            end repeat
         end repeat
         __ax_elem = __ax_elem + $01
         __ax_depth = __ax_depth + $01
@@ -247,7 +260,9 @@ macro end?.element
             __ax_elem_tmp = __ax_stack_#d
         end repeat
         repeat 1, e:__ax_elem_tmp
-            __ax_name_tmp = __axr_n + __ax_name_#e
+            repeat 1, k:__ax_name_#e
+                __ax_name_tmp = __axr_n + __axo_r_#k
+            end repeat
         end repeat
 
         ushort RES_XML_END_ELEMENT
@@ -408,6 +423,12 @@ macro axml_file? body?*
     _ax_ires AXML_NS
     body
 
+    _order __axr_i_, _key_less, __axr_r_, __axr_o_, __axr_n, \
+        'two attribute names have one resource id'
+    _order __axo, _str_less, __axo_r_, __axo_o_, __axo_n, \
+        'string pool came out unsorted'
+    __ax_phase = $02
+
     _ax_ires "android"
     __ax_prefix = __ax_idx
     _ax_ires AXML_NS
@@ -442,23 +463,29 @@ macro axml_file? body?*
     ;  not here.
     repeat __axr_n, i:0
       pool_r_#i:
-        _pool_string __axr_v_#i
+        repeat 1, k:__axr_o_#i
+            _pool_string __axr_v_#k
+        end repeat
     end repeat
     repeat __axo_n, i:0
       pool_o_#i:
-        _pool_string __axo_v_#i
+        repeat 1, k:__axo_o_#i
+            _pool_string __axo_v_#k
+        end repeat
     end repeat
     align $04
   pool_end:
 
     ; ── resource map ──────────────────────────────────────
     ;
-    ;  One id per attribute name, in the order the names were
-    ;  interned, which is the order they sit in the pool.
+    ;  One id per attribute name, in the order they sit in the
+    ;  pool, which is ascending id.
     chunk map, RES_XML_RESOURCE_MAP
   map_header_end:
     repeat __axr_n, i:0
-        uint __axr_i_#i
+        repeat 1, k:__axr_o_#i
+            uint __axr_i_#k
+        end repeat
     end repeat
   map_end:
 
