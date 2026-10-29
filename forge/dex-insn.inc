@@ -514,11 +514,16 @@ struc defstring? _value?*, _len?*
     _utf16_length utf16len?, _value, _len
     label .
     .utf16_size?: leb128 utf16len?
-    ; emit MUTF-8 data: convert 4-byte UTF-8 to surrogate pairs
+    ; emit MUTF-8 data: convert 4-byte UTF-8 to surrogate pairs, and
+    ; U+0000 to C0 80, the two-byte form, since a 00 byte is where the
+    ; reader stops
     i? = 0
     while i < _len
         b? = (_value shr (i * 8)) and $FF
-        if b < $F0
+        if b = $00
+            db $C0, $80
+            i? = i + 1
+        else if b < $F0
             db b
             i? = i + 1
         else
